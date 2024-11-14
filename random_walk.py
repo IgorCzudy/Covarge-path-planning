@@ -1,22 +1,44 @@
 import random
+from typing import List, Tuple, Optional, Set
+import numpy as np
+import networkx as nx
 
-def graph_random_walk(graph, nodes_without_obst):
 
-    nodes = list(nodes_without_obst)
-    path = [nodes[0]] # starting point
+class Random_walk:
+    def __init__(self) -> None:
+        self.path: Optional[List[int]] = None
+        self.nodes_without_obst: Optional[Set[int]] = None
+        self.graph: Optional[nx.Graph] = None
 
-    dead_point = [] # TODO this deadpoint needs more thinking, possible optymalization here  
+    def _are_not_all_nodes_visited(self):
+        return self.nodes_without_obst - set(self.path)
 
-    while set(nodes_without_obst) - set(path):# do poki wszystkie wiercholki nie zostana odwiedzone 
-        current_node = path[-1]
-        s = set(graph[current_node]) - set(path)
-        if s: # check if it is not empty 
-            n = random.sample(s, 1)[0]
-            path.append(n)
-            dead_point = []
-        else: # jesli nie ma nieodwiedzonych wiercholkow z sotepnych z danego wierzcholka cofnik sie do jakiegokolwiek zajetego 
-            dead_point.append(current_node)
-            n = random.sample(set(graph[current_node])-set(dead_point), 1)[0]
-            path.append(n)
-        
-    return path
+    def _graph_random_walk(self):
+
+        while self._are_not_all_nodes_visited():
+
+            current_node = self.path[-1]
+            s = set(self.graph[current_node]) - set(self.path)
+
+            if s:  # check if there is some not visited neighbour
+                n = random.sample(s, 1)[0]
+                self.path.append(n)
+            else:
+                to_drow = set(self.graph[current_node]) - {
+                    self.path[-1]
+                }  # dontt come back to node you just came from
+                n = random.sample(to_drow, 1)[0]
+                self.path.append(n)
+
+        return self.path
+
+    def _initialize(self, graph: nx.Graph, nodes_without_obst: List[int]):
+        self.graph = graph
+        self.nodes_without_obst = set(nodes_without_obst)
+        self.path = [0]  # Start from the initial node (0,0)
+
+    def __call__(self, graph: nx.Graph, nodes_without_obst: List[int]) -> List[int]:
+
+        self._initialize(graph, nodes_without_obst)
+        path = self._graph_random_walk()
+        return path
