@@ -14,17 +14,17 @@ def make_grid(size: int = 10, random: bool = False, coverage: float = 0.1) -> np
     grid = np.zeros((size, size), dtype=int)
 
     if not random and size > 5:
-        grid[0,8] = 1
-        # grid[4,5] = 1
-        # grid[5,5] = 1
+        # grid[0,8] = 1
+        grid[4,5] = 1
+        grid[5,5] = 1
 
-        # grid[8,8] = 1
-        # grid[9,9] = 1
+        grid[8,8] = 1
+        grid[9,9] = 1
 
-        # grid[2,8] = 1
-        # grid[2,7] = 1
-        # grid[1,8] = 1
-        # grid[1,7] = 1
+        grid[2,8] = 1
+        grid[2,7] = 1
+        grid[1,8] = 1
+        grid[1,7] = 1
     else:
         total_cells = size * size
         num_obstacles = int(total_cells * coverage)
@@ -303,87 +303,128 @@ def my_simulated_annealing_tsp(
     return best_path
 
 
-def zig_zag_path(grid, graph, complete_graph, nodes_without_obst):
+def going_down(x, y, grid, x_shape, y_shape, path):
+    
+    indx = (y+1)*x_shape + x
+    path.append(indx) # add down 
+    y+= 1
+    return x, y, path
+
+    
+def can_i_go_down(x, y, y_shape, x_shape, grid, path):
+    if y+1 < y_shape and grid[y+1, x] == 0 and \
+        (y+1)*x_shape + x not in path:    #chck if down is ok 
+        return True
+    
+    return False
+
+def can_i_go_up(x, y, x_shape, grid, path):
+    if y-1 >=0 and grid[y-1, x] == 0 and (y-1)*x_shape + x not in path:
+        return True
+    return False
+
+
+def going_up(x, y, grid, x_shape, y_shape, path):
+    indx = (y-1)*x_shape + x
+    path.append(indx) # add down 
+    y-=1
+    return x, y, path
+
+def find_the_closest_one(x, y, x_shape, complete_graph, path):
+    indx = y*x_shape + x
+    filtered_connected_nodes_with_weights = [(neighbor, complete_graph[indx][neighbor].get('weight', 1)) for neighbor in complete_graph.neighbors(indx) if neighbor not in path]
+    next_indx, _ = min(filtered_connected_nodes_with_weights, key=lambda x: x[1])
+    
+    y = next_indx // x_shape
+    x = next_indx % x_shape
+    return x, y, next_indx, indx
+
+
+def zig_zag_path(grid: np.ndarray, complete_graph: nx.Graph, nodes_without_obst: List[int]) -> List[int]:
     
     x_shape, y_shape = grid.shape
-    path = [0]
+    path = [0] #starting from node 0 - (0,0)
 
     x = 0
-    y = 0 # wiersz
-    # propity = [up, left/right, down, nerest]
+    y = 0 
+    while set(nodes_without_obst) - set(path): # untill not all nodes were visited 
 
-    while set(nodes_without_obst) - set(path):
+        if can_i_go_up(x, y, x_shape, grid, path):
+            x, y, path = going_up(x, y, grid, x_shape, y_shape, path)
 
-        #check if i can go up
-        if y-1 >=0 and \
-        grid[y-1, x] == 0 and  \
-        (y-1)*x_shape + x not in path:
-            indx = (y-1)*x_shape + x
-            path.append(indx) # add down 
-            y-=1
-            # print(path)
-            # return path
-        
-
-        elif y % 2 == 0:
-            # right 
-            if x+1 < x_shape and grid[y, x+1] == 0: #no obstyckle
+        elif y % 2 == 0:# right 
+            if x+1 < x_shape and grid[y, x+1] == 0 and y*x_shape + (x+1) not in path: #no obstyckle
                 indx = y*x_shape + (x+1)
                 path.append(indx)
                 x += 1
             else: # obstyckle
-                # we are going down 
-                if y+1 <= y_shape:
-                    if grid[y+1, x] == 0:    #chck if down is ok 
-                        indx = (y+1)*x_shape + x
-                        y+=1
-                        path.append(indx) # add down 
+                if can_i_go_down(x, y, y_shape, x_shape, grid, path):
+                    x, y, path = going_down(x, y, grid, x_shape, y_shape, path)
+                else: # there is obstyckle down or we aredy have been there 
+                    # go to the closest one 
+                    x, y, next_indx, indx = find_the_closest_one(x, y, x_shape, complete_graph, path)
+                    
+                    if 'path' not in complete_graph[indx][next_indx]:
+                        part_path = [next_indx]
+                    else:
+                        part_path = complete_graph[indx][next_indx]['path'][::-1][1:]
+                    path.extend(part_path)                  
 
-        #         # else: # there is obstyckle down 
-        else:
-            # left
-            if x > 0 and grid[y, x-1] == 0: #no obstyckle
+        else:# left
+            if x > 0 and grid[y, x-1] == 0 and y*x_shape + (x-1) not in path: #no obstyckle
                 indx = y*x_shape + (x-1)
                 x -= 1
                 path.append(indx)
 
-            else: # obstacle or end of board
-                # down 
-                if y+1 < y_shape and grid[y+1, x] == 0:    #chck if down is ok 
-                    indx = (y+1)*x_shape + x
-                    path.append(indx) # add down 
-                    y+= 1
-        #         # else: # there is obstyckle down 
-            
-        if y >= y_shape-1:
-            print(path)
-            return path
+            else: # obstacle or end of board or we alredy have been there 
+                if can_i_go_down(x, y, y_shape, x_shape, grid, path):
+                    x, y, path = going_down(x, y, grid, x_shape, y_shape, path)
+                else: # there is obstyckle down or we aredy have been there 
+                # go to the closest one
+                    x, y, next_indx, indx = find_the_closest_one(x, y, x_shape, complete_graph, path)
+                    
+                    if 'path' not in complete_graph[indx][next_indx]:
+                        part_path = [next_indx]
+                    else:
+                        part_path = complete_graph[indx][next_indx]['path'][::-1][1:]
+                    path.extend(part_path)
+    
     return path
 
 
 if __name__ == "__main__":
     # grid = make_grid(10, True, coverage = 0)
     grid = make_grid()
-    # plot_matrix(grid)
+    plot_matrix(grid)
     graph, nodes_without_obst = create_networkX_graph(grid)
 
+    # path = graph_random_walk(graph, nodes_without_obst)
+    # print(path)
+    # cost = sum(graph.get_edge_data(path[i], path[i + 1]).get('weight', 1) for i in range(len(path) - 1))
+    # print("Total cost:", cost)
+    # plot_graph(graph, path)
 
-    complete_graph = nx.Graph(graph)
-    for u in nodes_without_obst:
-        for v in nodes_without_obst:
-            if u != v and not graph.has_edge(u, v):
-                length = nx.shortest_path_length(graph, source=u, target=v, weight='weight')
-                complete_graph.add_edge(u, v, weight=length)
-            if u == v:
-                complete_graph.add_edge(u, v, weight=1000)
+    # complete_graph = nx.Graph(graph)
+    # for u in nodes_without_obst:
+    #     for v in nodes_without_obst:
+    #         if u != v and not graph.has_edge(u, v):
+    #             path = nx.shortest_path(graph, source=u, target=v, weight='weight')
+    #             length = nx.shortest_path_length(graph, source=u, target=v, weight='weight')
+    #             complete_graph.add_edge(u, v, weight=length, path=path)
+    
+    # path = zig_zag_path(grid, complete_graph, nodes_without_obst)
+    # print(path)
+    # cost = sum(graph.get_edge_data(path[i], path[i + 1]).get('weight', 1) for i in range(len(path) - 1))
+    # print("Total cost:", cost)
+    # plot_graph(graph, path)
 
-    path = zig_zag_path(grid, graph, complete_graph, nodes_without_obst)
-    plot_graph(graph, path)
-
-    tsp = nx.approximation.traveling_salesman_problem
+    # tsp = nx.approximation.traveling_salesman_problem
     # path = tsp(graph, cycle=True, nodes=nodes_without_obst, method=nx.approximation.traveling_salesman.greedy_tsp)
     # path = tsp(graph, cycle=True, nodes=nodes_without_obst, method=nx.approximation.traveling_salesman.christofides)
     # path = path[:path.index(0)-1]
+    # print(path)
+    # cost = sum(graph.get_edge_data(path[i], path[i + 1]).get('weight', 1) for i in range(len(path) - 1))
+    # print("Total cost:", cost)
     # plot_graph(graph, path)
     # import sys; sys.exit(0)
 
@@ -396,21 +437,22 @@ if __name__ == "__main__":
     # plot_graph(graph, cycle)
     # import sys; sys.exit(0)
 
-    # tsp = nx.approximation.traveling_salesman_problem
-    # path = tsp(graph, cycle=True, nodes=nodes_without_obst, method=nx.approximation.traveling_salesman.greedy_tsp)
-    # plot_graph(graph, path)
-    # complete_graph = nx.Graph(graph)
-    # for u in nodes_without_obst:
-    #     for v in nodes_without_obst:
-    #         if u != v and not graph.has_edge(u, v):
-    #             length = nx.shortest_path_length(graph, source=u, target=v, weight='weight')
-    #             complete_graph.add_edge(u, v, weight=length)
-    #         if u == v:
-    #             complete_graph.add_edge(u, v, weight=1000)
+    tsp = nx.approximation.traveling_salesman_problem
+    path = tsp(graph, cycle=True, nodes=nodes_without_obst, method=nx.approximation.traveling_salesman.greedy_tsp)
+    plot_graph(graph, path)
+    complete_graph = nx.Graph(graph)
+    for u in nodes_without_obst:
+        for v in nodes_without_obst:
+            if u != v and not graph.has_edge(u, v):
+                length = nx.shortest_path_length(graph, source=u, target=v, weight='weight')
+                complete_graph.add_edge(u, v, weight=length)
+            if u == v:
+                complete_graph.add_edge(u, v, weight=1000)
                 
-    # cycle = my_simulated_annealing_tsp(complete_graph, path, move = "1-0", temp=500, alpha=0.001, max_iterations=40, N_inner=1000,)
-    # plot_graph(complete_graph, cycle)
-    # print(cycle==path)
+    cycle = my_simulated_annealing_tsp(graph, path, move = "not-fully-connected", temp=500, alpha=0.001, max_iterations=40, N_inner=1000,)
+    plot_graph(complete_graph, cycle)
+    print(cycle==path)
+    print(cycle)
 
 
     # cost = sum(graph.get_edge_data(path[i], path[i + 1]).get('weight', 1) for i in range(len(path) - 1))
