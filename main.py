@@ -73,7 +73,7 @@ def plot_3d_grid(grid, path = [0,1,2,3]):
             y=dark_indices[:, 1],
             z=dark_indices[:, 2],
             mode='markers+text',
-            text=[f"({x}, {y}, {z} - {map_corinats_to_node_number(x, y, z, grid)})" for x, y, z in dark_indices],
+            # text=[f"({x}, {y}, {z} - {map_corinats_to_node_number(x, y, z, grid)})" for x, y, z in dark_indices],
             textposition='top center',
             marker=dict(size=5, color='black'),
             name='1', 
@@ -86,7 +86,7 @@ def plot_3d_grid(grid, path = [0,1,2,3]):
             y=light_indices[:, 1],
             z=light_indices[:, 2],
             mode='markers+text',
-            text=[f"({x}, {y}, {z} - {map_corinats_to_node_number(x, y, z, grid)})" for x, y, z in light_indices],
+            # text=[f"({x}, {y}, {z} - {map_corinats_to_node_number(x, y, z, grid)})" for x, y, z in light_indices],
             textposition='top center',
             marker=dict(size=5, color='lightgray'),
             name='0',
@@ -262,11 +262,11 @@ def plot_graph(graph, nodes_that_are_obtyckle):
 
     fig.show()
 
-def random_walk(graph):
+def random_walk(graph, nodes_that_are_not_obtyckle):
     random.seed(42)
     path = [0] # start with first node 
     visited = set([0])
-    all_nodes = set(graph.nodes)
+    all_nodes = set(nodes_that_are_not_obtyckle)
 
     while visited < all_nodes:
         possible_new_moves = set(graph[path[-1]]) - visited
@@ -290,17 +290,20 @@ def random_walk(graph):
 if __name__ == "__main__":
     grid = make_3d_grid(random=True)
     print(grid)
-    nodes_that_are_obtyckle = [ map_corinats_to_node_number(x,y,z,grid) for x, y, z in np.argwhere(grid == 1)]
     
     # plot_3d_grid(grid)
 
     graph = build_graph(grid)
+    nodes_that_are_obtyckle = [ map_corinats_to_node_number(x,y,z,grid) for x, y, z in np.argwhere(grid == 1)]
+    nodes_that_are_not_obtyckle = list(set(graph.nodes) - set(nodes_that_are_obtyckle))
     # plot_graph(graph, nodes_that_are_obtyckle)
     
-    # path = random_walk(graph)
+    path = random_walk(graph, nodes_that_are_not_obtyckle)
+    print(path)
+
+    # tsp = nx.approximation.traveling_salesman_problem
+    # path = tsp(graph, cycle=True, nodes=nodes_that_are_not_obtyckle, method=nx.approximation.traveling_salesman.christofides)
+    # path = path[:path.index(0)-1]
     # print(path)
 
-
-    tsp = nx.approximation.traveling_salesman_problem
-    path = tsp(graph, cycle=False)
-    print(path)
+    plot_3d_grid(grid, path)
