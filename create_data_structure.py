@@ -5,30 +5,35 @@ from typing import List, Tuple
 def make_grid(size: int = 10, random: bool = False, coverage: float = 0.1) -> np.ndarray:
     grid = np.zeros((size, size), dtype=int)
 
-    if not random and size > 5:
+    # if not random and size > 5:
         # grid[0,8] = 1
-        grid[4,5] = 1
-        grid[5,5] = 1
+    grid[4,5] = 1
+    grid[5,5] = 1
 
-        grid[8,8] = 1
-        grid[9,9] = 1
+    grid[8,8] = 1
+    grid[9,9] = 1
 
-        grid[2,8] = 1
-        grid[2,7] = 1
-        grid[1,8] = 1
-        grid[1,7] = 1
-    else:
-        total_cells = size * size
-        num_obstacles = int(total_cells * coverage)
+    grid[2,8] = 1
+    grid[2,7] = 1
+    grid[1,8] = 1
+    grid[1,7] = 1
 
-        obstacles = set()
-        while len(obstacles) < num_obstacles:
-            row = np.random.randint(0, size)
-            col = np.random.randint(0, size)
-            obstacles.add((row, col))
+    grid[5,5] = 1
+    grid[6,6] = 1
+    grid[4,4] = 1
 
-        for row, col in obstacles:
-            grid[row, col] = 1
+    # else:
+    #     total_cells = size * size
+    #     num_obstacles = int(total_cells * coverage)
+
+    #     obstacles = set()
+    #     while len(obstacles) < num_obstacles:
+    #         row = np.random.randint(0, size)
+    #         col = np.random.randint(0, size)
+    #         obstacles.add((row, col))
+
+    #     for row, col in obstacles:
+    #         grid[row, col] = 1
 
     return grid
 
