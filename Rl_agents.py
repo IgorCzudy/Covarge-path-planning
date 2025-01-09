@@ -95,38 +95,44 @@ class Qnn(nn.Module):
         
 
 class DeepQlearningAgent(Agent):
-    def __init__(self, number_of_action, number_of_states, γ=1, α=0.3, ε=0.7, α_decay=0.999, ε_decay=0.999, α_min=0, ε_min=0):
+    def __init__(self, number_of_action, number_of_states, γ=1, α=1e-3, ε=0.7, α_decay=0.999, ε_decay=0.999, α_min=0, ε_min=0):
         
+        self.device = torch.device(
+                    "cuda" if torch.cuda.is_available() else
+                    "mps" if torch.backends.mps.is_available() else
+                    "cpu"
+                )
 
-        self.qnn = Qnn(n_input=number_of_states, n_output=number_of_action)
+        self.qnn = Qnn(n_input=number_of_states, n_output=number_of_action).to(self.device)
         self.number_of_action = number_of_action
         self.number_of_states = number_of_states
 
-        self.criterion = nn.MSELoss()
+        self.criterion = nn.MSELoss() #nn.SmoothL1Loss()
 
         self.ε = ε
         self.γ = γ # The discount factor γ, which controls how much future rewards are valued compared to immediate rewards
-        self.optim = torch.optim.Adam(self.qnn.parameters())
+        self.optim = torch.optim.AdamW(self.qnn.parameters(), lr=α)
 
     def process_transition(self, observation, action, reward, next_observation, done):
-        a, r, s, s_next = action, reward, torch.tensor([observation], dtype=torch.float32), torch.tensor([next_observation], dtype=torch.float32)
+        
 
+        observation = torch.tensor(observation, dtype=torch.float32).to(self.device)
+        next_observation = torch.tensor(next_observation, dtype=torch.float32).to(self.device)
 
-        target_q = (r + ( self.γ * self.qnn(s_next) ).squeeze(0).float().max()) * ~done
+        current_q_values = self.qnn(observation)
+        current_q_value = current_q_values[action]
 
+        if done:
+            target_q_value = torch.tensor(reward, dtype=torch.float32).to(self.device)  # If done, no future reward, just the immediate reward
+        else:
+            next_q_values = self.qnn(next_observation)
+            target_q_value = reward + self.γ * torch.max(next_q_values)
 
-        predicted_q = self.qnn(s).squeeze(0).float()[a]
-
-        loss = self.criterion(target_q, predicted_q)
+        loss = self.criterion(current_q_value, target_q_value)
         
         self.optim.zero_grad()
         loss.backward()
         self.optim.step()
-        # Q-learning update equation
-        # self.Q[s][a] += self.α * (r + self.γ * max_next_q - self.Q[s][a])
-        # temporal difference error. It measures how much the agent's current estimate of 
-        #  𝑄(𝑠,𝑎)Q(s,a) differs from the observed reward and future predictions.
-
         
     
     def get_action(self, observation): #learning):
@@ -135,7 +141,7 @@ class DeepQlearningAgent(Agent):
             return np.random.randint(self.number_of_action), {} # chose rundom action
         
         with torch.no_grad():
-            o = torch.tensor([observation], dtype=torch.float32)
+            o = torch.tensor([observation], dtype=torch.float32, device=self.device)
             # s = F.one_hot(o, num_classes=self.number_of_states).squeeze(0)
             a = self.qnn(o).argmax()
             return a, {}
