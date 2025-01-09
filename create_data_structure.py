@@ -3,24 +3,24 @@ import networkx as nx
 from typing import List, Tuple
 
 def make_grid(size: int = 10, random: bool = False, coverage: float = 0.1) -> np.ndarray:
-    grid = np.zeros((size, size), dtype=int)
+    grid = np.ones((size, size), dtype=int)
 
     # if not random and size > 5:
         # grid[0,8] = 1
-    grid[4,5] = 1
-    grid[5,5] = 1
+    grid[4,5] = 2
+    grid[5,5] = 2
 
-    grid[8,8] = 1
-    grid[9,9] = 1
+    grid[8,8] = 2
+    grid[9,9] = 2
 
-    grid[2,8] = 1
-    grid[2,7] = 1
-    grid[1,8] = 1
-    grid[1,7] = 1
+    grid[2,8] = 2
+    grid[2,7] = 2
+    grid[1,8] = 2
+    grid[1,7] = 2
 
-    grid[5,5] = 1
-    grid[6,6] = 1
-    grid[4,4] = 1
+    grid[5,5] = 2
+    grid[6,6] = 2
+    grid[4,4] = 2
 
     # else:
     #     total_cells = size * size

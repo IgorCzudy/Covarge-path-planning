@@ -136,3 +136,31 @@ class SimpleCovargePathPlanningEnv(gym.Env):
 
     def _get_observation(self):
         return self.agent_pos[1] + self.agent_pos[0] * self.grid_height
+
+
+
+
+from Rl_run import learn_agent, make_Q_table_plot, get_sample_actions_Q_table, plot_mean_reward
+from Rl_agents import TabularQLearningAgent
+from run_and_plot_env import test_agent
+
+if __name__ == "__main__":
+    env = SimpleCovargePathPlanningEnv()
+
+    agent = TabularQLearningAgent(number_of_action=4, 
+                                  number_of_states=100, 
+                                  γ=1, 
+                                  α=0.3, 
+                                  ε=0.7,
+                                  α_decay=0.999, 
+                                  ε_decay=0.999, 
+                                  α_min=0, 
+                                  ε_min=0)
+
+    env, agent = learn_agent(env, agent, episodes = 100)
+
+    make_Q_table_plot(agent)
+    test_agent(env, agent, epochs=100)
+    
+    env = SimpleCovargePathPlanningEnv(display=True)
+    actions, path = get_sample_actions_Q_table(env, agent)

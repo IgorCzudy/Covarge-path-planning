@@ -54,7 +54,6 @@ def run_agent_in_env(env, agent, episodes, learning=False, plot=False, plot_inte
     return rewards    
 
 def test_agent(env, agent, epochs, render=False):
-    import seaborn as sns
     render = render or epochs <= 5
     scores = []
     for _ in range(epochs):

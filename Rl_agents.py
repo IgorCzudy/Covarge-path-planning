@@ -97,6 +97,7 @@ class Qnn(nn.Module):
 class DeepQlearningAgent(Agent):
     def __init__(self, number_of_action, number_of_states, γ=1, α=0.3, ε=0.7, α_decay=0.999, ε_decay=0.999, α_min=0, ε_min=0):
         
+
         self.qnn = Qnn(n_input=number_of_states, n_output=number_of_action)
         self.number_of_action = number_of_action
         self.number_of_states = number_of_states
@@ -108,12 +109,13 @@ class DeepQlearningAgent(Agent):
         self.optim = torch.optim.Adam(self.qnn.parameters())
 
     def process_transition(self, observation, action, reward, next_observation, done):
-        a, r, s, s_next = action, reward, observation, next_observation
+        a, r, s, s_next = action, reward, torch.tensor([observation], dtype=torch.float32), torch.tensor([next_observation], dtype=torch.float32)
 
 
-        target_q = r + (self.γ * self.qnn(F.one_hot(torch.tensor([s_next]), num_classes = self.number_of_states).squeeze(0).float()).max()) * ~done
-        
-        predicted_q = self.qnn(F.one_hot(torch.tensor([s]), num_classes = self.number_of_states).squeeze(0).float())[a]
+        target_q = (r + ( self.γ * self.qnn(s_next) ).squeeze(0).float().max()) * ~done
+
+
+        predicted_q = self.qnn(s).squeeze(0).float()[a]
 
         loss = self.criterion(target_q, predicted_q)
         
@@ -130,11 +132,11 @@ class DeepQlearningAgent(Agent):
     def get_action(self, observation): #learning):
         # 3 if learning and 
         if np.random.rand() < self.ε:
-            return np.random.randint(self.number_of_action) # chose rundom action
+            return np.random.randint(self.number_of_action), {} # chose rundom action
         
         with torch.no_grad():
-            o = torch.tensor([observation])
-            s = F.one_hot(o, num_classes=self.number_of_states).squeeze(0)
-            a = self.qnn(s.float()).argmax()
-            return a
+            o = torch.tensor([observation], dtype=torch.float32)
+            # s = F.one_hot(o, num_classes=self.number_of_states).squeeze(0)
+            a = self.qnn(o).argmax()
+            return a, {}
 
