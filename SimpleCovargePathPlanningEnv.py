@@ -157,10 +157,10 @@ if __name__ == "__main__":
                                   α_min=0, 
                                   ε_min=0)
 
-    env, agent = learn_agent(env, agent, episodes = 100)
+    env, agent = learn_agent(env, agent, episodes = 10)
 
     make_Q_table_plot(agent)
-    test_agent(env, agent, epochs=100)
+    # test_agent(env, agent, epochs=100)
     
     env = SimpleCovargePathPlanningEnv(display=True)
     actions, path = get_sample_actions_Q_table(env, agent)

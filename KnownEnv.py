@@ -5,7 +5,8 @@ import pygame
 from numpy import uint8
 import time
 from stable_baselines3 import A2C
-from Rl_agents import TabularQLearningAgent, DeepQlearningAgent
+from Rl_agents import TabularQLearningAgent 
+from DeepQlearningAgent import DeepQlearningAgent
 from Rl_run import learn_agent, plot_rewards
 from tqdm import tqdm
 
@@ -26,6 +27,7 @@ class KnownEnv(gym.Env):
 
         self.action_space = spaces.Discrete(4)
 
+        # self.observation_space = spaces.Box(low=0, high=1, shape=(self.grid_width*self.grid_height + 1,), dtype=np.float32)
         self.observation_space = spaces.Dict({
             "grid": spaces.Box(low=0, high=2, 
                 shape=[self.grid_width, self.grid_height],
@@ -90,6 +92,8 @@ class KnownEnv(gym.Env):
             "grid": self.grid,
             "position": position
         }
+
+        # return np.append(self.grid.flatten()/3, position/99) 
     
     def step(self, action):
 
@@ -107,28 +111,32 @@ class KnownEnv(gym.Env):
 
 
         if new_x == x and new_y == y: # move out of bandries 
-            reward = -10
+            reward = -5
+            done = True
 
         elif self.grid[new_x, new_y] == 1: # move to obstyckle
-            reward = -10
+            reward = -5
+            done = True
 
         elif self.grid[new_x, new_y] == 2: # move to alredy visited cell 
-            reward = -10
+            reward = -1
             self.agent_pos = [new_x, new_y]
+            done = False
         
         elif self.grid[new_x, new_y] == 0: # move to new visited cell  
-            reward = 10
+            reward = 1
             self.agent_pos = [new_x, new_y]
             self.grid[new_x, new_y] = 2
+            done = False
         
 
         if np.all((self.grid == 2) | (self.grid == 1)): # if all cells that are not obstyckle ware visited
-            reward = 1000
+            reward = 100
             done = True
-        else:
-            done = False
+        # else:
+        #     done = False
         
-        reward = (reward - (-10)) / (1000 - (-10))
+        # reward = (reward - (-10)) / (1000 - (-10))
         return self._get_observation(), reward, done, False, {}
     
 
@@ -176,37 +184,83 @@ if __name__ == "__main__":
     episodes = 1000
 
     
-    knownEnv = KnownEnv(display=True)
-    number_of_states = 10*10 + 1
-    number_of_action = 4
+    # knownEnv = KnownEnv()
+    # number_of_states = 10*10 + 1
+    # number_of_action = 4
     
-    agent = DeepQlearningAgent(number_of_action=number_of_action, 
-                               number_of_states=number_of_states, 
-                               γ=1, α=0.3, ε=0.99, 
-                               α_decay=0.999, ε_decay=0.9, 
-                               α_min=0.001, ε_min=0.001)
+    # agent = DeepQlearningAgent(number_of_action=number_of_action, 
+    #                            number_of_states=number_of_states, 
+    #                            γ=1, α=1e-3, ε=0.9, 
+    #                            α_decay=0.999, ε_decay=0.999, 
+    #                            α_min=0.001, ε_min=0.1)
 
-    rewards = []
-    eps = []
-    for _ in tqdm(range(episodes)):
-        obs, _ = knownEnv.reset()
-        obs = np.append(obs['grid'].flatten(), obs['position'])
-        total_reward = 0
-        done = False
-        while not done:
-            action, _ = agent.get_action(obs)
-            knownEnv.render()
-            next_obs, reward, done, _, _ = knownEnv.step(action)
-            next_obs = np.append(next_obs['grid'].flatten(), next_obs['position'])
-            total_reward += reward
+    # rewards = []
+    # eps = []
+    # for _ in tqdm(range(episodes)):
+    #     obs, _ = knownEnv.reset()
+    #     obs = np.append(obs['grid'].flatten() / 3, obs['position'] / 99)
+    #     # obs[:100] /= 3
+    #     # obs[-1] /= 99
+   
+    #     total_reward = 0
+    #     done = False
+    #     while not done:
+    #         action, _ = agent.get_action(obs)
+    #         # knownEnv.render()
+    #         next_obs, reward, done, _, _ = knownEnv.step(action)
+    #         next_obs = np.append(next_obs['grid'].flatten() / 3, next_obs['position'] / 99)
+    #         # next_obs[:100] /= 3
+    #         # next_obs[-1] /= 99
+            
+    #         total_reward += reward
 
-            agent.process_transition(obs, action, reward, next_obs, done)
-            obs = next_obs
+    #         agent.process_transition(obs, action, reward, next_obs, done)
+    #         obs = next_obs
 
-        rewards.append(total_reward)
-        eps.append(agent.ε)
+    #     rewards.append(total_reward)
+    #     eps.append(agent.ε)
 
-    plot_rewards(rewards, eps, 50)
+    # plot_rewards(rewards, eps, 50)
+
+
+    # knownEnv = KnownEnv(display=True)
+
+    # observation, _ = knownEnv.reset()
+    # done = False
+
+    # while not done:
+    #     action, _ = agent.get_action(obs)
+    #     knownEnv.render()
+    #     next_obs, reward, done, _, _ = knownEnv.step(action)
+    #     next_obs = np.append(next_obs['grid'].flatten(), next_obs['position'])
+    #     agent.process_transition(obs, action, reward, next_obs, done)
+    #     obs = next_obs
+
+
+
+
+
+
+    # knownEnv = KnownEnv()
+    # number_of_states = 10*10 + 1
+    # number_of_action = 4
+
+    # model = A2C(
+    #     "MlpPolicy", 
+    #     knownEnv, 
+    #     n_steps=100, 
+    #     verbose=2,
+    #     # gamma=0.999, # Determines the weight of future rewards relative to immediate rewards
+    #     # ent_coef=0.9,  # Higher values encourage exploration
+    #     # vf_coef=0.5, 
+    #     # max_grad_norm=0.5, 
+    #     # tensorboard_log="logs", 
+    #     # policy_kwargs=policy_kwargs
+    # )
+
+    
+    # model.learn(total_timesteps=1_000_000, tb_log_name="ppo_logs", log_interval=50)
+
 
 
 
@@ -222,26 +276,28 @@ if __name__ == "__main__":
     # while True:
     #     action = knownEnv.action_space.sample()
     #     knownEnv.render()
-    #     time.sleep(0.1)
+    #     # time.sleep(0.1)
     #     observation, reward, done, _, _ = knownEnv.step(action)
     #     if done:
     #         break
 
 
-    # knownEnv = KnownEnv()
-    # model = A2C("MultiInputPolicy", knownEnv, verbose=1, tensorboard_log="./a2c_tensorboard_logs/")
-    # model.learn(total_timesteps=10_000)
+    knownEnv = KnownEnv()
+    model = A2C("MultiInputPolicy", knownEnv, verbose=1, tensorboard_log="./a2c_tensorboard_logs/")
+    model.learn(total_timesteps=500_000)
 
-    # vec_env = KnownEnv(display=True)
-    # obs, _ = vec_env.reset()
-    # while True:
-    #     vec_env.render()
-    #     time.sleep(0.1)
-    #     action, _state = model.predict(obs, deterministic=True)
-    #     action = action.item()
-    #     obs, reward, done, _, _ = vec_env.step(action)
-    #     if done:
-    #         break
+
+    for i in range(20):
+        vec_env = KnownEnv(display=True)
+        obs, _ = vec_env.reset()
+        while True:
+            vec_env.render()
+            time.sleep(0.1)
+            action, _state = model.predict(obs, deterministic=False)
+            action = action.item()
+            obs, reward, done, _, _ = vec_env.step(action)
+            if done:
+                break
 
 
     # knownEnv = KnownEnv()

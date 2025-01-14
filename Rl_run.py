@@ -5,7 +5,7 @@ from run_and_plot_env import run_agent_in_env, test_agent
 import matplotlib.pyplot as plt
 import os
 
-from Rl_agents import TabularQLearningAgent, RandomAgent, DeepQlearningAgent
+# from Rl_agents import TabularQLearningAgent, RandomAgent, DeepQlearningAgent
 from MaskedCovargePathPlanningEnv import MaskedCovargePathPlanningEnv
 # from SimpleCovargePathPlanningEnv import SimpleCovargePathPlanningEnv
 from stable_baselines3 import A2C
