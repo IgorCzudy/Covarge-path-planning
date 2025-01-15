@@ -32,7 +32,7 @@ class KnownEnv(gym.Env):
             "grid": spaces.Box(low=0, high=2, 
                 shape=[self.grid_width, self.grid_height],
                 dtype = uint8) ,
-            "position": spaces.Discrete(n = self.grid_width*self.grid_height)
+            "position": spaces.MultiDiscrete([self.grid_width, self.grid_height])
         })
 
         if display:
@@ -57,20 +57,23 @@ class KnownEnv(gym.Env):
         grid = np.zeros((self.grid_width, self.grid_height), dtype=uint8)
 
         # obstycle 
-        grid[4,5] = 1
-        grid[5,5] = 1
+        grid[0,2] = 1
+        grid[2,3] = 1
+        grid[2,2] = 1
+        grid[3,3] = 1
+        # grid[5,5] = 1
 
-        grid[8,8] = 1
-        grid[9,9] = 1
+        # grid[8,8] = 1
+        # grid[9,9] = 1
 
-        grid[2,8] = 1
-        grid[2,7] = 1
-        grid[1,8] = 1
-        grid[1,7] = 1
+        # grid[2,8] = 1
+        # grid[2,7] = 1
+        # grid[1,8] = 1
+        # grid[1,7] = 1
 
-        grid[5,5] = 1
-        grid[6,6] = 1
-        grid[4,4] = 1
+        # grid[5,5] = 1
+        # grid[6,6] = 1
+        # grid[4,4] = 1
 
         return grid
 
@@ -86,11 +89,11 @@ class KnownEnv(gym.Env):
         return self._get_observation(), {}
 
     def _get_observation(self):
-        position = self.map_xy_to_int(self.agent_pos[0], self.agent_pos[1])
+        # position = self.map_xy_to_int(self.agent_pos[0], self.agent_pos[1])
         
         return {
             "grid": self.grid,
-            "position": position
+            "position": np.array([self.agent_pos[0], self.agent_pos[1]])
         }
 
         # return np.append(self.grid.flatten()/3, position/99) 
@@ -111,32 +114,31 @@ class KnownEnv(gym.Env):
 
 
         if new_x == x and new_y == y: # move out of bandries 
-            reward = -5
-            done = True
+            reward = -10
+            
 
         elif self.grid[new_x, new_y] == 1: # move to obstyckle
-            reward = -5
-            done = True
+            reward = -10
+            
 
         elif self.grid[new_x, new_y] == 2: # move to alredy visited cell 
-            reward = -1
+            reward = -5
             self.agent_pos = [new_x, new_y]
-            done = False
-        
+            
+
         elif self.grid[new_x, new_y] == 0: # move to new visited cell  
-            reward = 1
+            reward = 5
             self.agent_pos = [new_x, new_y]
             self.grid[new_x, new_y] = 2
-            done = False
+            
         
-
         if np.all((self.grid == 2) | (self.grid == 1)): # if all cells that are not obstyckle ware visited
             reward = 100
             done = True
-        # else:
-        #     done = False
+        else:
+            done = False
         
-        # reward = (reward - (-10)) / (1000 - (-10))
+        reward = (reward - (-10)) / (100 - (-10))
         return self._get_observation(), reward, done, False, {}
     
 
@@ -181,36 +183,35 @@ class KnownEnv(gym.Env):
 
 
 if __name__ == "__main__":
-    episodes = 1000
+    episodes = 10_000
 
     
-    # knownEnv = KnownEnv()
-    # number_of_states = 10*10 + 1
-    # number_of_action = 4
+    knownEnv = KnownEnv(grid_size=(5,5), display=True)
+    number_of_states = 5*5 + 2 # position as x, y 
+    number_of_action = 4
     
-    # agent = DeepQlearningAgent(number_of_action=number_of_action, 
-    #                            number_of_states=number_of_states, 
-    #                            γ=1, α=1e-3, ε=0.9, 
-    #                            α_decay=0.999, ε_decay=0.999, 
-    #                            α_min=0.001, ε_min=0.1)
+    # agent = DeepQlearningAgent( number_of_action = number_of_action, 
+    #                             number_of_states = number_of_states, 
+    #                             γ=0.99, 
+    #                             α=1e-2, α_decay=0.9999, l2=1e-5,
+    #                             ε=0.7, ε_decay=0.999999, ε_min=0.1,
+    #                             hidden=[256, 64],
+    #                             double_dqn=False,
+    #                             is_replayMemory=False, replayMemory_size=100,
+    #                             mini_batch_size=16)
 
     # rewards = []
     # eps = []
     # for _ in tqdm(range(episodes)):
     #     obs, _ = knownEnv.reset()
-    #     obs = np.append(obs['grid'].flatten() / 3, obs['position'] / 99)
-    #     # obs[:100] /= 3
-    #     # obs[-1] /= 99
-   
+    #     obs = np.append(obs['grid'].flatten() / 3, obs['position'] / 10)
+        
     #     total_reward = 0
     #     done = False
     #     while not done:
     #         action, _ = agent.get_action(obs)
-    #         # knownEnv.render()
     #         next_obs, reward, done, _, _ = knownEnv.step(action)
-    #         next_obs = np.append(next_obs['grid'].flatten() / 3, next_obs['position'] / 99)
-    #         # next_obs[:100] /= 3
-    #         # next_obs[-1] /= 99
+    #         next_obs = np.append(next_obs['grid'].flatten() / 3, next_obs['position'] / 10)
             
     #         total_reward += reward
 
@@ -221,20 +222,35 @@ if __name__ == "__main__":
     #     eps.append(agent.ε)
 
     # plot_rewards(rewards, eps, 50)
+    # agent.save_agent(path="models/untill_full_covarge")
 
 
     # knownEnv = KnownEnv(display=True)
+    # obs, _ = knownEnv.reset()
+    # obs = np.append(obs['grid'].flatten() / 3, obs['position'] / 10)
 
-    # observation, _ = knownEnv.reset()
     # done = False
-
     # while not done:
-    #     action, _ = agent.get_action(obs)
+    #     action, _ = agent.get_action(obs, learning=False)
     #     knownEnv.render()
     #     next_obs, reward, done, _, _ = knownEnv.step(action)
     #     next_obs = np.append(next_obs['grid'].flatten(), next_obs['position'])
-    #     agent.process_transition(obs, action, reward, next_obs, done)
     #     obs = next_obs
+
+
+    # model = DeepQlearningAgent.agent_load(path="models/untill_full_covarge")
+    # knownEnv = KnownEnv(display=True)
+    # obs, _ = knownEnv.reset()
+    # obs = np.append(obs['grid'].flatten() / 3, obs['position'] / 10)
+    # done = False
+    # while not done:
+    #     action, _ = DeepQlearningAgent.get_action_from_loaded_model(model, obs)
+    #     knownEnv.render()
+    #     next_obs, reward, done, _, _ = knownEnv.step(action)
+    #     next_obs = np.append(next_obs['grid'].flatten(), next_obs['position'])
+    #     obs = next_obs
+
+
 
 
 
@@ -263,41 +279,38 @@ if __name__ == "__main__":
 
 
 
-
-
-
     # knownEnv = KnownEnv(display=True)
-    # observation, _ = knownEnv.reset()
+    observation, _ = knownEnv.reset()
 
     # n = knownEnv.observation_space["grid"].shape[0] * knownEnv.observation_space["grid"].shape[1]
     # number_of_possible_observation = 3**n + n
     # print(f"{number_of_possible_observation=}")
 
-    # while True:
-    #     action = knownEnv.action_space.sample()
-    #     knownEnv.render()
-    #     # time.sleep(0.1)
-    #     observation, reward, done, _, _ = knownEnv.step(action)
-    #     if done:
-    #         break
+    while True:
+        action = knownEnv.action_space.sample()
+        knownEnv.render()
+        # time.sleep(0.1)
+        observation, reward, done, _, _ = knownEnv.step(action)
+        if done:
+            break
 
 
-    knownEnv = KnownEnv()
-    model = A2C("MultiInputPolicy", knownEnv, verbose=1, tensorboard_log="./a2c_tensorboard_logs/")
-    model.learn(total_timesteps=500_000)
+    # knownEnv = KnownEnv()
+    # model = A2C("MultiInputPolicy", knownEnv, verbose=1, tensorboard_log="./a2c_tensorboard_logs/")
+    # model.learn(total_timesteps=500_000)
 
 
-    for i in range(20):
-        vec_env = KnownEnv(display=True)
-        obs, _ = vec_env.reset()
-        while True:
-            vec_env.render()
-            time.sleep(0.1)
-            action, _state = model.predict(obs, deterministic=False)
-            action = action.item()
-            obs, reward, done, _, _ = vec_env.step(action)
-            if done:
-                break
+    # for i in range(20):
+    #     vec_env = KnownEnv(display=True)
+    #     obs, _ = vec_env.reset()
+    #     while True:
+    #         vec_env.render()
+    #         time.sleep(0.1)
+    #         action, _state = model.predict(obs, deterministic=False)
+    #         action = action.item()
+    #         obs, reward, done, _, _ = vec_env.step(action)
+    #         if done:
+    #             break
 
 
     # knownEnv = KnownEnv()
