@@ -1,16 +1,16 @@
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from run_and_plot_env import run_agent_in_env, test_agent
+# from run_and_plot_env import run_agent_in_env, test_agent
 import matplotlib.pyplot as plt
-import os
+# import os
 
-# from Rl_agents import TabularQLearningAgent, RandomAgent, DeepQlearningAgent
-from MaskedCovargePathPlanningEnv import MaskedCovargePathPlanningEnv
+# from Rl_agents import TabularQLearningAgent
+# from MaskedCovargePathPlanningEnv import MaskedCovargePathPlanningEnv
 # from SimpleCovargePathPlanningEnv import SimpleCovargePathPlanningEnv
-from stable_baselines3 import A2C
-from ploting import plot_graph
-import networkx as nx
+# from stable_baselines3 import A2C
+# from ploting import plot_graph
+# import networkx as nx
 
 
 def plot_rewards(rewards, eps, roll):
@@ -102,7 +102,7 @@ def get_sample_actions_Q_table(env, agent):
 
         env.render()
         print(int_to_act[action])
-        import time; time.sleep(0.1)
+        import time; time.sleep(0.15)
         observation, _, done, _, _ = env.step(action)
         if done: break
 

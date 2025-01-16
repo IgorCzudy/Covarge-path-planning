@@ -7,7 +7,7 @@ import pygame
 
 class SimpleCovargePathPlanningEnv(gym.Env):
 
-    def __init__(self, grid_size=(10, 10), display = False):
+    def __init__(self, grid_size=(5, 5), display = False):
         super(SimpleCovargePathPlanningEnv, self).__init__()
 
         self.grid_width = grid_size[0]
@@ -29,27 +29,34 @@ class SimpleCovargePathPlanningEnv(gym.Env):
             
             self.colors = {
                         0: (255, 255, 255),  # White for empty cells
-                        1: (0, 255, 0),      # Green for obstacles or paths
+                        1: (0, 0, 0),      # Green for obstacles or paths
+                        2: (0, 255, 0),      # Green for visited cell
                         9: (255, 0, 0)       # Red for the agent
                         }
 
     def make_grid(self) -> np.ndarray:
         grid = np.zeros((self.grid_width, self.grid_height), dtype=int)
 
-        grid[4,5] = 1
-        grid[5,5] = 1
+        # obstycle 
+        grid[0,2] = 1
+        grid[2,3] = 1
+        grid[2,2] = 1
+        grid[3,3] = 1
 
-        grid[8,8] = 1
-        grid[9,9] = 1
+        # grid[4,5] = 1
+        # grid[5,5] = 1
 
-        grid[2,8] = 1
-        grid[2,7] = 1
-        grid[1,8] = 1
-        grid[1,7] = 1
+        # grid[8,8] = 1
+        # grid[9,9] = 1
 
-        grid[5,5] = 1
-        grid[6,6] = 1
-        grid[4,4] = 1
+        # grid[2,8] = 1
+        # grid[2,7] = 1
+        # grid[1,8] = 1
+        # grid[1,7] = 1
+
+        # grid[5,5] = 1
+        # grid[6,6] = 1
+        # grid[4,4] = 1
         return grid
 
 
@@ -66,6 +73,8 @@ class SimpleCovargePathPlanningEnv(gym.Env):
     
 
     def step(self, action):
+        assert 0 <= action <= 3, "action must be in the range from 0 to 3"
+
         self.num_of_steps+=1
         x, y = self.agent_pos
         new_x, new_y = x, y
@@ -80,22 +89,24 @@ class SimpleCovargePathPlanningEnv(gym.Env):
             new_y += 1
         
 
-        reward = -1
         done = False
-
         if new_x == x and new_y == y: # move out of bandries 
-            reward -= 10
+            reward = -10
 
         elif self.grid[new_x, new_y] == 1: # move to obstyckle
-            reward -= 10
-
+            reward = -10
+        
+        elif self.grid[new_x, new_y] == 2: # move to alredy visited cell 
+            reward = -1
+            self.agent_pos = [new_x, new_y]
+         
         else: # move
             self.agent_pos = [new_x, new_y] # marked new visited move 
             self.grid[new_x, new_y] = 2
-            reward += 10
+            reward = 10
 
         if np.all((self.grid == 2) | (self.grid == 1)): # if all cells that are not obstyckle ware visited
-            reward += 100
+            reward = 100
             done = True
 
         return self._get_observation(), reward, done, False, {}
@@ -144,20 +155,24 @@ from Rl_run import learn_agent, make_Q_table_plot, get_sample_actions_Q_table, p
 from Rl_agents import TabularQLearningAgent
 from run_and_plot_env import test_agent
 
+
 if __name__ == "__main__":
+
+
     env = SimpleCovargePathPlanningEnv()
 
     agent = TabularQLearningAgent(number_of_action=4, 
-                                  number_of_states=100, 
+                                  number_of_states=25, 
                                   γ=1, 
-                                  α=0.3, 
-                                  ε=0.7,
+                                  α=0.0001, 
+                                  ε=0.99,
                                   α_decay=0.999, 
                                   ε_decay=0.999, 
-                                  α_min=0, 
-                                  ε_min=0)
+                                  α_min=0.0001, 
+                                  ε_min=0.01)
 
-    env, agent = learn_agent(env, agent, episodes = 10)
+    env, agent = learn_agent(env, agent, episodes = 3500)
+
 
     make_Q_table_plot(agent)
     # test_agent(env, agent, epochs=100)

@@ -4,7 +4,7 @@ import numpy as np
 import pygame
 from numpy import uint8
 import time
-from stable_baselines3 import A2C
+from stable_baselines3 import A2C, DQN
 from Rl_agents import TabularQLearningAgent 
 from DeepQlearningAgent import DeepQlearningAgent
 from Rl_run import learn_agent, plot_rewards
@@ -28,12 +28,23 @@ class KnownEnv(gym.Env):
         self.action_space = spaces.Discrete(4)
 
         # self.observation_space = spaces.Box(low=0, high=1, shape=(self.grid_width*self.grid_height + 1,), dtype=np.float32)
+        # self.observation_space = spaces.Dict({
+        #     "grid": spaces.Box(low=0, high=2, 
+        #         shape=[self.grid_width, self.grid_height],
+        #         dtype = uint8) ,
+        #     "position": spaces.MultiDiscrete([self.grid_width, self.grid_height])
+        # })
+
         self.observation_space = spaces.Dict({
-            "grid": spaces.Box(low=0, high=2, 
-                shape=[self.grid_width, self.grid_height],
-                dtype = uint8) ,
-            "position": spaces.MultiDiscrete([self.grid_width, self.grid_height])
-        })
+            "grid_is_visited": spaces.MultiBinary([self.grid_width, self.grid_height], ),
+            "grid_is_obstyckle": spaces.MultiBinary([self.grid_width, self.grid_height], ),
+            "grid_is_free": spaces.MultiBinary([self.grid_width, self.grid_height], ),
+            "grid_position": spaces.MultiBinary([self.grid_width, self.grid_height], ),
+            })
+
+        # self.observation_space = spaces.Box(low=0, high=255, shape=(self.grid_width, self.grid_height, 4), dtype=np.uint8)
+
+
 
         if display:
             pygame.init()
@@ -89,16 +100,45 @@ class KnownEnv(gym.Env):
         return self._get_observation(), {}
 
     def _get_observation(self):
-        # position = self.map_xy_to_int(self.agent_pos[0], self.agent_pos[1])
+        
+        grid_position = np.zeros_like(self.grid)
+        grid_position[self.agent_pos[0], self.agent_pos[1]] = 1
         
         return {
-            "grid": self.grid,
-            "position": np.array([self.agent_pos[0], self.agent_pos[1]])
+            "grid_is_visited": (self.grid == 2).astype(int),
+            "grid_is_obstyckle": (self.grid == 1).astype(int),
+            "grid_is_free": (self.grid == 0).astype(int),
+            "grid_position": (grid_position).astype(int),
         }
 
-        # return np.append(self.grid.flatten()/3, position/99) 
+        
+        
+        # grid_position = np.zeros_like(self.grid)
+        # grid_position[self.agent_pos[0], self.agent_pos[1]] = 1
+        
+        # 0: (255, 255, 255),  # White for empty cells
+        # 1: (0, 0, 0), # Black for obstycle
+        # 2: (0, 255, 0),      # Green for visited cell
+
+        # return {
+        #     "grid_is_visited": (self.grid == 2).astype(int),
+        #     "grid_is_obstyckle": (self.grid == 1).astype(int),
+        #     "grid_is_free": (self.grid == 0).astype(int),
+        #     "grid_position": grid_position,
+        # }
+
+        # position = self.map_xy_to_int(self.agent_pos[0], self.agent_pos[1])
+        # return {
+        #     "grid": self.grid,
+        #     "position": np.array([self.agent_pos[0], self.agent_pos[1]])
+        # }
+
+        # return np.append(self.grid.flatten() / 3, np.array([self.agent_pos[0], self.agent_pos[1]]) / 10)
     
     def step(self, action):
+        # assert isinstance(action, int), "action must be an integer"
+        assert 0 <= action <= 3, "action must be in the range from 0 to 3"
+
 
         x, y = self.agent_pos
         new_x, new_y = x, y 
@@ -114,31 +154,31 @@ class KnownEnv(gym.Env):
 
 
         if new_x == x and new_y == y: # move out of bandries 
-            reward = -10
+            reward = -0.10
             
 
         elif self.grid[new_x, new_y] == 1: # move to obstyckle
-            reward = -10
+            reward = -0.10
             
 
         elif self.grid[new_x, new_y] == 2: # move to alredy visited cell 
-            reward = -5
+            reward = -0.01
             self.agent_pos = [new_x, new_y]
             
 
         elif self.grid[new_x, new_y] == 0: # move to new visited cell  
-            reward = 5
+            reward = 0.10
             self.agent_pos = [new_x, new_y]
             self.grid[new_x, new_y] = 2
             
         
         if np.all((self.grid == 2) | (self.grid == 1)): # if all cells that are not obstyckle ware visited
-            reward = 100
+            reward = 1
             done = True
         else:
             done = False
         
-        reward = (reward - (-10)) / (100 - (-10))
+        # reward = (reward - (-10)) / (100 - (-10))
         return self._get_observation(), reward, done, False, {}
     
 
@@ -183,18 +223,18 @@ class KnownEnv(gym.Env):
 
 
 if __name__ == "__main__":
-    episodes = 10_000
+    episodes = 1_000
 
     
-    knownEnv = KnownEnv(grid_size=(5,5), display=True)
-    number_of_states = 5*5 + 2 # position as x, y 
-    number_of_action = 4
+    # knownEnv = KnownEnv()
+    # number_of_states = 10*10 + 2 # position as x, y 
+    # number_of_action = 4
     
     # agent = DeepQlearningAgent( number_of_action = number_of_action, 
     #                             number_of_states = number_of_states, 
     #                             γ=0.99, 
     #                             α=1e-2, α_decay=0.9999, l2=1e-5,
-    #                             ε=0.7, ε_decay=0.999999, ε_min=0.1,
+    #                             ε=0.7, ε_decay=0.999, ε_min=0.1,
     #                             hidden=[256, 64],
     #                             double_dqn=False,
     #                             is_replayMemory=False, replayMemory_size=100,
@@ -256,43 +296,64 @@ if __name__ == "__main__":
 
 
 
-
-    # knownEnv = KnownEnv()
-    # number_of_states = 10*10 + 1
-    # number_of_action = 4
-
-    # model = A2C(
-    #     "MlpPolicy", 
+    # knownEnv = KnownEnv(grid_size=(5,5))
+    
+    # model = DQN(
+    #     "MultiInputPolicy", 
     #     knownEnv, 
-    #     n_steps=100, 
-    #     verbose=2,
+    #     verbose=1,
+    #     tensorboard_log="logs", 
+    #     # train_freq = (1, "step"), 
+    #     exploration_initial_eps = 0.99,
+    #     exploration_final_eps = 0.05,
+    #     exploration_fraction=0.99999,
+    #     # # learning_rate = 0.9,
+    #     # batch_size = 4,
     #     # gamma=0.999, # Determines the weight of future rewards relative to immediate rewards
+    #     # target_update_interval=1,
     #     # ent_coef=0.9,  # Higher values encourage exploration
     #     # vf_coef=0.5, 
     #     # max_grad_norm=0.5, 
-    #     # tensorboard_log="logs", 
     #     # policy_kwargs=policy_kwargs
     # )
-
     
-    # model.learn(total_timesteps=1_000_000, tb_log_name="ppo_logs", log_interval=50)
+    # model.learn(total_timesteps=2_000_000, 
+    #             tb_log_name="DQN_MultiInputPolicy_with_complicated_env", 
+    #             log_interval=4)
+    
+    # model.save("DQN_MultiInputPolicy_with_complicated_env_4")
+    # DQN_MultiInputPolicy_with_complicated_env_3 BEST ONE 
+    model = DQN.load("DQN_MultiInputPolicy_with_complicated_env_4")
+
+    knownEnv = KnownEnv(grid_size=(5,5), display=True)
+    obs, _ = knownEnv.reset()
+    done = False
+    while not done:
+        action, _ = model.predict(obs, deterministic=True)
+        action = action.item()
+        knownEnv.render()
+        import time; time.sleep(0.5)
+        next_obs, reward, done, _, _  = knownEnv.step(action)
+        print(f"{action=} {reward=}")
+        obs = next_obs
+        
 
 
 
     # knownEnv = KnownEnv(display=True)
-    observation, _ = knownEnv.reset()
+    # observation, _ = knownEnv.reset()
 
     # n = knownEnv.observation_space["grid"].shape[0] * knownEnv.observation_space["grid"].shape[1]
     # number_of_possible_observation = 3**n + n
     # print(f"{number_of_possible_observation=}")
 
-    while True:
-        action = knownEnv.action_space.sample()
-        knownEnv.render()
-        # time.sleep(0.1)
-        observation, reward, done, _, _ = knownEnv.step(action)
-        if done:
-            break
+    # while True:
+    #     action = knownEnv.action_space.sample()
+    #     knownEnv.render()
+    #     # time.sleep(0.1)
+    #     observation, reward, done, _, _ = knownEnv.step(action)
+    #     if done:
+    #         break
 
 
     # knownEnv = KnownEnv()
