@@ -47,19 +47,18 @@ class Qnn(nn.Module):
 
 
 class DeepQlearningAgent(Agent):
+    # sync_freq=20,freezing=True
     def __init__(self, 
                  number_of_action, 
                  number_of_states, 
-                 γ=1, α=1e-3, ε=0.7, 
-                 α_decay=0.999, ε_decay=0.999, 
-                 α_min=0, ε_min=0,
-                 hidden=[256, 64, 16],
-                 sync_freq=20,freezing=True, 
+                 γ=1, 
+                 α=1e-3, α_decay=0.999, l2=1e-5,
+                 ε=0.7,ε_decay=0.999, ε_min=0,
+                 hidden=[256, 64],
                  double_dqn=False,
                  is_replayMemory=True, replayMemory_size=100,
                  mini_batch_size=16):
         
-        self.is_replayMemory = is_replayMemory
         self.device = torch.device(
                     "cuda" if torch.cuda.is_available() else
                     "mps" if torch.backends.mps.is_available() else
@@ -67,30 +66,28 @@ class DeepQlearningAgent(Agent):
                 )
         print(f"{self.device=}")
 
-        self.politicy_qnn = Qnn(n_input=number_of_states, n_output=number_of_action, hidden=hidden).to(self.device)
-        
-        # Create the target network and make it identical to the policy network
-        if double_dqn:
-            self.target_qnn = Qnn(n_input=number_of_states, n_output=number_of_action, hidden=hidden).to(self.device)
-            # self.target_qnn.load_state_dict(self.politicy_qnn.state_dict())
-        # else:
-        #     self.target_qnn = self.politicy_qnn
-
-
-        self.optim = torch.optim.AdamW(self.politicy_qnn.parameters(), lr=α)
-
         self.number_of_action = number_of_action
         self.number_of_states = number_of_states
 
+
+        self.politicy_qnn = Qnn(n_input=number_of_states, n_output=number_of_action, hidden=hidden).to(self.device)
+        self.politicy_qnn.train()
+        if double_dqn:
+            self.target_qnn = Qnn(n_input=number_of_states, n_output=number_of_action, hidden=hidden).to(self.device)
+            self.target_qnn.train()
+        self.optim = torch.optim.AdamW(self.politicy_qnn.parameters(), lr=α, weight_decay=l2)
+
+
+        self.is_replayMemory = is_replayMemory
         if self.is_replayMemory:
             self.replayMemory = ReplayMemory(replayMemory_size)
             self.mini_batch_size = mini_batch_size
         
-        self.criterion = nn.MSELoss() #nn.SmoothL1Loss()
+        self.criterion = nn.SmoothL1Loss() # nn.MSELoss() #nn.SmoothL1Loss()
 
         self.double_dqn = double_dqn
-        self.ε_decay = ε_decay
         self.ε = ε
+        self.ε_decay = ε_decay
         self.ε_min = ε_min
         self.γ = γ # The discount factor γ, which controls how much future rewards are valued compared to immediate rewards
 
@@ -123,22 +120,16 @@ class DeepQlearningAgent(Agent):
             reward_batch = torch.tensor(batch.reward, device=self.device, dtype=torch.float32).unsqueeze(0)
 
         if self.double_dqn:
-            if done:
-                target_q_value = reward_batch  # If done, no future reward, just the immediate reward
-                self.ε = max(self.ε_min, self.ε * self.ε_decay)
-            else:
-                best_actions_from_policy = self.politicy_qnn(next_state_batch).argmax(1)
-                target_q_value = reward_batch + self.γ * self.target_qnn(next_state_batch).gather(1, best_actions_from_policy.unsqueeze(1)).squeeze(1)
+            best_actions_from_policy = self.politicy_qnn(next_state_batch).argmax(1)
+            target_q_value = reward_batch + self.γ * self.target_qnn(next_state_batch).gather(1, best_actions_from_policy.unsqueeze(1)).squeeze(1)
         else:
-            if done:
-                target_q_value = reward_batch  # If done, no future reward, just the immediate reward
-                self.ε = max(self.ε_min, self.ε * self.ε_decay)
+            q = self.politicy_qnn(next_state_batch).max(1).values
+            target_q_value = reward_batch + self.γ * q
             
-            else:
-                q = self.politicy_qnn(next_state_batch).max(1).values
-                target_q_value = reward_batch + self.γ * q
-            
-
+        if done:
+            target_q_value = reward_batch  # If done, no future reward, just the immediate reward
+            self.ε = max(self.ε_min, self.ε * self.ε_decay)
+        
 
         q_values = self.politicy_qnn(state_batch)
         # selected_q_values = q_values[torch.tensor([i for i in range(4)]), action_batch]
@@ -151,15 +142,38 @@ class DeepQlearningAgent(Agent):
         self.optim.step()
         
     
-    def get_action(self, observation): #learning):
-        # 3 if learning and 
-        if np.random.rand() < self.ε:
+    def get_action(self, observation, learning = True): 
+        if learning and np.random.rand() < self.ε:
             return np.random.randint(self.number_of_action), {} # chose rundom action
         
         with torch.no_grad():
             o = torch.tensor(observation, dtype=torch.float32, device=self.device)
-            # self.politicy_qnn.eval()
             a = self.politicy_qnn(o).argmax()
-            # self.politicy_qnn.train()  # Switch to training mode
             return a.item(), {}
+    
+    def save_agent(self, path="models"):
+        torch.save(self.politicy_qnn, f"{path}/politicy_qnn_model.pth")
 
+
+    @staticmethod
+    def agent_load(path="models"):
+        device = torch.device(
+                    "cuda" if torch.cuda.is_available() else
+                    "mps" if torch.backends.mps.is_available() else
+                    "cpu"
+                )
+        loaded_model = torch.load(f"{path}/politicy_qnn_model.pth", weights_only=False)
+        loaded_model = loaded_model.to(device)
+        loaded_model.eval()
+        return loaded_model 
+
+    @staticmethod
+    def get_action_from_loaded_model(model, observation):
+        device = torch.device(
+                    "cuda" if torch.cuda.is_available() else
+                    "mps" if torch.backends.mps.is_available() else
+                    "cpu"
+                )
+        o = torch.tensor(observation, dtype=torch.float32, device=device)
+        a = model(o).argmax()
+        return a.item(), {}
