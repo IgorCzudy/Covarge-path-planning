@@ -34,7 +34,8 @@ class RandomAgent(Agent):
     
 class TabularQLearningAgent(Agent):
     def __init__(self, number_of_action, number_of_states, γ=1, α=0.3, ε=0.7, α_decay=0.999, ε_decay=0.999, α_min=0, ε_min=0):
-        
+        np.random.seed(42)
+
         self.Q = np.zeros((number_of_states, number_of_action))
         self.number_of_action = number_of_action
         self.number_of_states = number_of_states
