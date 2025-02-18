@@ -1,15 +1,15 @@
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np 
-from create_data_structure import make_grid
 import pygame
 
 
 class SimpleCovargePathPlanningEnv(gym.Env):
 
-    def __init__(self, grid_size=(5, 5), display = False):
+    def __init__(self, grid_size=(5, 5), display = False, starting_point = (0, 0)):
         super(SimpleCovargePathPlanningEnv, self).__init__()
 
+        self.starting_point = starting_point
         self.grid_width = grid_size[0]
         self.grid_height = grid_size[1]
         self.num_of_steps = 0
@@ -42,21 +42,16 @@ class SimpleCovargePathPlanningEnv(gym.Env):
         grid[2,3] = 1
         grid[2,2] = 1
         grid[3,3] = 1
+        grid[3,2] = 1
 
-        # grid[4,5] = 1
-        # grid[5,5] = 1
+        if self.grid_height > 6 and self.grid_with > 6:
+            grid[6,5] = 1
+            grid[5,6] = 1
+            grid[5,5] = 1
+            grid[6,6] = 1
 
-        # grid[8,8] = 1
-        # grid[9,9] = 1
-
-        # grid[2,8] = 1
-        # grid[2,7] = 1
-        # grid[1,8] = 1
-        # grid[1,7] = 1
-
-        # grid[5,5] = 1
-        # grid[6,6] = 1
-        # grid[4,4] = 1
+            grid[4,2] = 1
+            grid[5,2] = 1
         return grid
 
 
@@ -65,9 +60,9 @@ class SimpleCovargePathPlanningEnv(gym.Env):
 
         self.grid = self.make_grid() # always the same grid 
         
-        started_poin_x, started_poin_y = 0, 0
+        started_poin_x, started_poin_y = self.starting_point[0], self.starting_point[1]
         self.agent_pos = [started_poin_x, started_poin_y]
-        self.grid[0, 0] = 2
+        self.grid[started_poin_x, started_poin_y] = 2
         
         return self._get_observation(), {}
     
@@ -91,22 +86,22 @@ class SimpleCovargePathPlanningEnv(gym.Env):
 
         done = False
         if new_x == x and new_y == y: # move out of bandries 
-            reward = -10
+            reward = -0.10
 
         elif self.grid[new_x, new_y] == 1: # move to obstyckle
-            reward = -10
+            reward = -0.10
         
         elif self.grid[new_x, new_y] == 2: # move to alredy visited cell 
-            reward = -1
+            reward = -0.01
             self.agent_pos = [new_x, new_y]
          
         else: # move
             self.agent_pos = [new_x, new_y] # marked new visited move 
             self.grid[new_x, new_y] = 2
-            reward = 10
+            reward = 0.1
 
         if np.all((self.grid == 2) | (self.grid == 1)): # if all cells that are not obstyckle ware visited
-            reward = 100
+            reward = 1
             done = True
 
         return self._get_observation(), reward, done, False, {}
@@ -159,23 +154,30 @@ from run_and_plot_env import test_agent
 if __name__ == "__main__":
 
 
-    env = SimpleCovargePathPlanningEnv()
+    env = SimpleCovargePathPlanningEnv(grid_size=(5,5),starting_point=(0, 0), )
 
     agent = TabularQLearningAgent(number_of_action=4, 
-                                  number_of_states=25, 
-                                  γ=1, 
-                                  α=0.0001, 
-                                  ε=0.99,
-                                  α_decay=0.999, 
-                                  ε_decay=0.999, 
-                                  α_min=0.0001, 
-                                  ε_min=0.01)
+                                    number_of_states=25, 
+                                    γ=1, 
+                                    α=0.1, 
+                                    ε=0.99,
+                                    α_decay=0.999, 
+                                    ε_decay=0.997, 
+                                    α_min=0.0001, 
+                                    ε_min=0.0005
+                                )
 
-    env, agent = learn_agent(env, agent, episodes = 3500)
+    env, agent = learn_agent(env, agent, episodes = 15, )
 
 
     make_Q_table_plot(agent)
     # test_agent(env, agent, epochs=100)
     
-    env = SimpleCovargePathPlanningEnv(display=True)
-    actions, path = get_sample_actions_Q_table(env, agent)
+    env = SimpleCovargePathPlanningEnv(grid_size=(5,5), starting_point=(0, 0), display=True)
+    actions, path = get_sample_actions_Q_table(env, agent, starting_point=(0, 0))
+
+    from ploting import plot_graph
+    import networkx as nx
+    graph = nx.Graph()
+    graph.add_nodes_from([i for i in range(25)])
+    plot_graph(graph, path)

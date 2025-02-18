@@ -49,16 +49,17 @@ class TabularQLearningAgent(Agent):
 
     def process_transition(self, observation, action, reward, next_observation, done):
         a, r, s, s_next = action, reward, observation, next_observation
+        self.ε = max(self.ε_min, self.ε * self.ε_decay) # Multiplier to reduce ϵ at every episode
         if done:
             max_next_q = 0
             # self.Q[s_next] = 0 # terminal states have no future rewards, 
-            self.ε = max(self.ε_min, self.ε * self.ε_decay) # Multiplier to reduce ϵ at every episode
+            # self.ε = max(self.ε_min, self.ε * self.ε_decay) # Multiplier to reduce ϵ at every episode
             self.α = max(self.α_min, self.α * self.α_decay)
         else:
             max_next_q = np.max(self.Q[s_next])
         
         # Q-learning update equation
-        self.Q[s][a] += self.α * (r + self.γ * max_next_q - self.Q[s][a])
+        self.Q[s][a] += self.α * (r + self.γ * (max_next_q - self.Q[s][a]))
         # temporal difference error. It measures how much the agent's current estimate of 
         #  𝑄(𝑠,𝑎)Q(s,a) differs from the observed reward and future predictions.
         
