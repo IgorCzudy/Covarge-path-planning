@@ -1,62 +1,41 @@
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-# from run_and_plot_env import run_agent_in_env, test_agent
 import matplotlib.pyplot as plt
-# import os
-
-# from Rl_agents import TabularQLearningAgent
-# from MaskedCovargePathPlanningEnv import MaskedCovargePathPlanningEnv
-# from SimpleCovargePathPlanningEnv import SimpleCovargePathPlanningEnv
-# from stable_baselines3 import A2C
-# from ploting import plot_graph
-# import networkx as nx
 
 
-def plot_rewards(rewards, number_of_steps_to_end, eps, roll):
+def plot_rewards(rewards, steps_to_end, eps, roll):
     fig, ax = plt.subplots(2, 1, figsize=(10, 6))
 
     ax[0].margins(x=0)
-    line1, = ax[0].plot(rewards, label='Reward', color='r')
-    line2, = ax[0].plot(pd.Series(rewards).rolling(roll).mean(), label=f"Reward Mean after: {roll} epochs", color='orange')
+    ax[0].plot(rewards, label='Reward', color='r')
+    ax[0].plot(pd.Series(rewards).rolling(roll).mean(), label=f"Reward Mean after: {roll} epochs", color='orange')
     
     
     ax2 = ax[0].twinx()
-    ax2.grid(False)
-    # log_steps = np.log1p(number_of_steps_to_end)  # Log scale for number_of_steps_to_end
-    line4, = ax2.plot(number_of_steps_to_end, label='Number_of_steps_to_end', )
+    ax2.plot(steps_to_end, label='Number of steps of episode', color='b')
+    ax2.set_ylabel("Number of steps of episode")
+    ax2.set_ylim(min(steps_to_end) * 0.9, max(steps_to_end) * 1.1)
+
+
+    ax[0].set_xlabel('Number of episodes')
     ax[0].set_ylabel("Rewards")
-    ax2.set_ylabel("Number_of_steps_to_end")
-    ax2.set_ylim(min(number_of_steps_to_end) * 0.9, max(number_of_steps_to_end) * 1.1)
-
-    # ax2.set_ylim(0, 1)
-
-    # Combine legends
-    lines = [line1, line2, line4]
+    
+    lines = ax[0].get_lines() + ax2.get_lines()
     labels = [line.get_label() for line in lines]
     ax[0].legend(lines, labels, loc='lower left')
 
-    # Second plot (Epsilon)
-    ax[1].plot(eps, label="Epsilon", color='r')
+
+    ax[1].plot(eps, label="Epsilon", color='g')
+    ax[1].set_xlabel('Number of steps')
+    ax[1].set_ylabel('Epsilon')
     ax[1].legend()
-    ax[1].set_title("Epsilon")
+    ax[1].set_title("Epsilon over Time")
 
-    plt.tight_layout()  # Adjust layout to prevent overlap
+    plt.tight_layout()
     plt.show()
 
 
-
-
-def plot_eps(eps):
-    fig, ax = plt.subplots()
-    ax.margins(x=0)
-    
-    # Plot rewards and rolling mean
-    ax.plot(eps, label='Epsilon')
-    ax.grid(False)
-    ax.set_ylim(0, 1)
-    ax.legend(loc='lower left')  # Single legend in one location
-    plt.show()
 
 
 def plot_mean_reward(env, model, sample=100):
@@ -259,81 +238,3 @@ def make_Q_table_plot(agent):
     plt.title("Q table")
     plt.savefig("Q_table.jpg")
     plt.show()
-
-
-
-# if __name__ == "__main__":
-
-#     env = SimpleCovargePathPlanningEnv()
-
-#     agent = TabularQLearningAgent(number_of_action=4, 
-#                                   number_of_states=100, 
-#                                   γ=1, 
-#                                   α=0.3, 
-#                                   ε=0.7,
-#                                   α_decay=0.999, 
-#                                   ε_decay=0.999, 
-#                                   α_min=0, 
-#                                   ε_min=0)
-
-#     env, agent = learn_agent(env, agent, episodes = 10)
-
-#     make_Q_table_plot(agent)
-
-
-#     env = SimpleCovargePathPlanningEnv(display=True)
-#     actions, path = get_sample_actions_Q_table(env, agent)
-
-#     graph = nx.Graph()
-#     graph.add_nodes_from([i for i in range(100)])
-#     plot_graph(graph, path)
-
-
-    # env = MaskedCovargePathPlanningEnv() #, random_obstacles=False, coverage=0.2)
-    # env.reset()
-
-    # policy_kwargs = dict(net_arch=[dict(pi=[64, 64], vf=[64, 64])])
-
-
-    # model = A2C(
-    #     "MlpPolicy", 
-    #     env, 
-    #     n_steps=10000, 
-    #     verbose=1
-    #     # gamma=0.999, # Determines the weight of future rewards relative to immediate rewards
-    #     # ent_coef=0.9,  # Higher values encourage exploration
-    #     # vf_coef=0.5, 
-    #     # max_grad_norm=0.5, 
-    #     # tensorboard_log="logs", 
-    #     # policy_kwargs=policy_kwargs
-    # )
-
-    
-    # model.learn(total_timesteps=10000)#, tb_log_name="ppo_logs", log_interval=100)
-
-    # env = MaskedCovargePathPlanningEnv(display=True)
-    # actions, path = get_sample_actions(env, model)
-
-
-    # obs, _ = env.reset()
-    # done = False
-    # while not done:
-    #     env.render()
-    #     import time ; time.sleep(2)
-    #     action, _ = model.predict(obs)
-    #     action = action.item()
-    #     n_obs, reward, done, _, _ = env.step(action)
-    #     print(F"{int_to_act[action]}, {reward=}")
-
-    #     obs = n_obs
-
-    # plot_mean_reward(env, model, sample=100)
-    
-    # actions = get_sample_action(env, model)
-    # path = get_sample_path(actions)
-    
-    # graph = nx.Graph()
-    # graph.add_nodes_from([i for i in range(100)])
-    # plot_graph(graph, path)
-    
-    # env, agent = learn_agent(env, agent)

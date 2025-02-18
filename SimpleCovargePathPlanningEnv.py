@@ -33,6 +33,20 @@ class SimpleCovargePathPlanningEnv(gym.Env):
                         2: (0, 255, 0),      # Green for visited cell
                         9: (255, 0, 0)       # Red for the agent
                         }
+            self.font = pygame.font.Font(None, 30)  # Define the font for numbers
+
+    def draw_grid(self):
+        for y in range(self.grid_height):
+            for x in range(self.grid_width):
+                cell_value = 0 
+                pygame.draw.rect(self.window, self.colors[cell_value],
+                                 (x * self.cell_size, y * self.cell_size, self.cell_size, self.cell_size))
+
+                text = self.font.render(f"{y*self.grid_width + x}", True, (0, 0, 0))  # Draw the number (index as example)
+                text_rect = text.get_rect(center=(x * self.cell_size + self.cell_size // 2,
+                                                  y * self.cell_size + self.cell_size // 2))
+                self.window.blit(text, text_rect)
+
 
     def make_grid(self) -> np.ndarray:
         grid = np.zeros((self.grid_width, self.grid_height), dtype=int)
@@ -137,6 +151,14 @@ class SimpleCovargePathPlanningEnv(gym.Env):
                     (col * self.cell_size, row * self.cell_size, self.cell_size, self.cell_size),
                     1
                 )
+
+                text = self.font.render(f"{col + row * self.grid_height}", True, (169, 169, 169))  # Draw the number (index as example)
+                text_rect = text.get_rect(center=(col * self.cell_size + self.cell_size // 2,
+                                                  row * self.cell_size + self.cell_size // 2))
+                
+                self.window.blit(text, text_rect)
+
+
         pygame.display.flip()
 
 
@@ -148,13 +170,12 @@ class SimpleCovargePathPlanningEnv(gym.Env):
 
 from Rl_run import learn_agent, make_Q_table_plot, get_sample_actions_Q_table, plot_mean_reward
 from Rl_agents import TabularQLearningAgent
-from run_and_plot_env import test_agent
 
 
 if __name__ == "__main__":
 
 
-    env = SimpleCovargePathPlanningEnv(grid_size=(5,5),starting_point=(0, 0), )
+    env = SimpleCovargePathPlanningEnv(grid_size=(5,5),starting_point=(0, 0), display=True)
 
     agent = TabularQLearningAgent(number_of_action=4, 
                                     number_of_states=25, 
@@ -167,7 +188,7 @@ if __name__ == "__main__":
                                     ε_min=0.0005
                                 )
 
-    env, agent = learn_agent(env, agent, episodes = 15, )
+    env, agent = learn_agent(env, agent, episodes = 15, display=True)
 
 
     make_Q_table_plot(agent)
