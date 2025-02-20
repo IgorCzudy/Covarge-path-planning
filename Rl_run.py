@@ -8,8 +8,8 @@ def plot_rewards(rewards, steps_to_end, eps, roll):
     fig, ax = plt.subplots(2, 1, figsize=(10, 6))
 
     ax[0].margins(x=0)
-    ax[0].plot(rewards, label='Reward', color='r')
-    ax[0].plot(pd.Series(rewards).rolling(roll).mean(), label=f"Reward Mean after: {roll} epochs", color='orange')
+    ax[0].plot(rewards, label='Reward', color='orange')
+    ax[0].plot(pd.Series(rewards).rolling(roll).mean(), label=f"Reward Mean after: {roll} epochs", color='r')
     
     
     ax2 = ax[0].twinx()
@@ -34,6 +34,77 @@ def plot_rewards(rewards, steps_to_end, eps, roll):
 
     plt.tight_layout()
     plt.show()
+
+def update_q_heatmpa(agent, im, ax, episode, numberofsteps, text_annotations):
+    
+    im.set_data(agent.Q)  # Update the data of the heatmap
+    ax.set_title(f'Q-values Heatmap (episode: {episode} moves: {numberofsteps}) \nexplor. rate ε: {agent.ε}')  # Update title to show episode
+
+    for annotation in text_annotations:
+        annotation.remove()
+    text_annotations.clear()
+    for j in range(agent.Q.shape[1]):
+        for i in range(agent.Q.shape[0]):
+            annotation = plt.text(j, i, f'{agent.Q[i, j]:.5f}', ha='center', va='center', color='black', fontsize=8)
+            text_annotations.append(annotation)
+
+    plt.draw()
+    plt.pause(0.0001)
+
+def initial_q_heatmap(agent):
+    fig, ax = plt.subplots(figsize=(4, 15))  # Set the figure size
+    im = ax.imshow(np.zeros_like(agent.Q), cmap='hot', aspect='auto', interpolation='nearest')
+    plt.colorbar(im, ax=ax)
+    text_annotations = []
+    plt.title('Q-values Heatmap')
+    return ax, im, text_annotations
+
+
+def learn_agent(env, agent, episodes=1000, plot=True, display_qtable=False, display_pygame=False, mlflow=True):
+
+    rewards = []
+    eps = []
+    steps_to_end = []
+
+    if display_qtable:
+        ax, im, text_annotations = initial_q_heatmap(agent)
+    
+    for episode in tqdm(range(episodes)):
+        obs, _ = env.reset()
+        total_reward = 0
+        done = False
+        numberofsteps=0
+        while not done:
+            numberofsteps+=1
+            action, _ = agent.get_action(obs)
+            # action = np.random.randint(4)
+
+            action = action.item()
+            next_obs, reward, done, _, _ = env.step(action)
+            
+            # print(f"{action=}, {reward=}")
+            # import time; time.sleep(0.1)
+            
+            total_reward += reward
+            if display_pygame:
+                env.render()
+            if display_qtable: 
+                update_q_heatmpa(agent, im, ax, episode, numberofsteps, text_annotations)
+
+            agent.process_transition(obs, action, reward, next_obs, done)
+            obs = next_obs
+            eps.append(agent.ε)
+
+        # env.change_starting_point()
+            
+        steps_to_end.append(numberofsteps)
+        rewards.append(total_reward)
+        
+        
+    if plot:
+        plot_rewards(rewards, steps_to_end, eps, 30)
+
+    return env, agent
 
 
 
@@ -165,62 +236,6 @@ def get_sample_actions(env, agent, starting_point = (0,0)):
     
     return actions, path
 
-
-
-def learn_agent(env, agent, episodes=3000, plot=True, display=False):
-
-    rewards = []
-    eps = []
-    number_of_steps_to_end = []
-
-
-    if display:
-        fig, ax = plt.subplots(figsize=(4, 15))  # Set the figure size
-        im = ax.imshow(np.zeros_like(agent.Q), cmap='hot', aspect='auto', interpolation='nearest')
-        plt.colorbar(im, ax=ax)
-        text_annotations = []
-        plt.title('Q-values Heatmap')
-
-    for episode in tqdm(range(episodes)):
-        obs, _ = env.reset()
-        total_reward = 0
-        done = False
-        numberofsteps=0
-        while not done:
-            numberofsteps+=1
-            action, _ = agent.get_action(obs)
-            # action = np.random.randint(4)
-
-            action = action.item()
-            next_obs, reward, done, _, _ = env.step(action)
-            total_reward += reward
-            if display: 
-                env.render()
-                Q_values = agent.Q
-                im.set_data(Q_values)  # Update the data of the heatmap
-                ax.set_title(f'Q-values Heatmap (episode: {episode} moves: {numberofsteps}) \nexplor. rate ε: {agent.ε}')  # Update title to show episode
-
-                for annotation in text_annotations:
-                    annotation.remove()
-                text_annotations.clear()
-                for j in range(agent.Q.shape[1]):
-                    for i in range(agent.Q.shape[0]):
-                        annotation = plt.text(j, i, f'{agent.Q[i, j]:.5f}', ha='center', va='center', color='black', fontsize=8)
-                        text_annotations.append(annotation)
-
-                plt.draw()
-                plt.pause(0.0001)
-            eps.append(agent.ε)
-            agent.process_transition(obs, action, reward, next_obs, done)
-            obs = next_obs
-        number_of_steps_to_end.append(numberofsteps)
-        rewards.append(total_reward)
-        
-        
-    if plot:
-        plot_rewards(rewards, number_of_steps_to_end,eps, 30)
-        # plot_eps(eps)
-    return env, agent
 
 
 def make_Q_table_plot(agent):

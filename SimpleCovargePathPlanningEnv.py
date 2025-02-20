@@ -69,6 +69,12 @@ class SimpleCovargePathPlanningEnv(gym.Env):
         return grid
 
 
+    def change_starting_point(self):
+        import random
+        random.seed(42)
+        self.starting_point = tuple(random.choice(np.argwhere(self.grid != 1)))
+
+
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
 
@@ -175,7 +181,7 @@ from Rl_agents import TabularQLearningAgent
 if __name__ == "__main__":
 
 
-    env = SimpleCovargePathPlanningEnv(grid_size=(5,5),starting_point=(0, 0), display=True)
+    env = SimpleCovargePathPlanningEnv(grid_size=(5,5),starting_point=(0, 0), display=False)
 
     agent = TabularQLearningAgent(number_of_action=4, 
                                     number_of_states=25, 
@@ -183,12 +189,12 @@ if __name__ == "__main__":
                                     α=0.1, 
                                     ε=0.99,
                                     α_decay=0.999, 
-                                    ε_decay=0.997, 
+                                    ε_decay=0.9999, 
                                     α_min=0.0001, 
-                                    ε_min=0.0005
+                                    ε_min=0.01
                                 )
 
-    env, agent = learn_agent(env, agent, episodes = 15, display=True)
+    env, agent = learn_agent(env, agent, episodes = 800, plot=True, display_qtable=False, display_pygame=False)
 
 
     make_Q_table_plot(agent)
@@ -196,6 +202,48 @@ if __name__ == "__main__":
     
     env = SimpleCovargePathPlanningEnv(grid_size=(5,5), starting_point=(0, 0), display=True)
     actions, path = get_sample_actions_Q_table(env, agent, starting_point=(0, 0))
+
+    from ploting import plot_graph
+    import networkx as nx
+    graph = nx.Graph()
+    graph.add_nodes_from([i for i in range(25)])
+    plot_graph(graph, path)
+
+
+
+
+    env = SimpleCovargePathPlanningEnv(grid_size=(5,5), starting_point=(4, 4), display=True)
+    actions, path = get_sample_actions_Q_table(env, agent, starting_point=(4, 4))
+
+    from ploting import plot_graph
+    import networkx as nx
+    graph = nx.Graph()
+    graph.add_nodes_from([i for i in range(25)])
+    plot_graph(graph, path)
+
+
+    env = SimpleCovargePathPlanningEnv(grid_size=(5,5), starting_point=(1, 1), display=True)
+    actions, path = get_sample_actions_Q_table(env, agent, starting_point=(1, 1))
+
+    from ploting import plot_graph
+    import networkx as nx
+    graph = nx.Graph()
+    graph.add_nodes_from([i for i in range(25)])
+    plot_graph(graph, path)
+
+    env = SimpleCovargePathPlanningEnv(grid_size=(5,5), starting_point=(4, 0), display=True)
+    actions, path = get_sample_actions_Q_table(env, agent, starting_point=(4, 0))
+
+    from ploting import plot_graph
+    import networkx as nx
+    graph = nx.Graph()
+    graph.add_nodes_from([i for i in range(25)])
+    plot_graph(graph, path)
+
+
+
+    env = SimpleCovargePathPlanningEnv(grid_size=(5,5), starting_point=(0, 3), display=True)
+    actions, path = get_sample_actions_Q_table(env, agent, starting_point=(0, 3))
 
     from ploting import plot_graph
     import networkx as nx

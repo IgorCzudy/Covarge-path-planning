@@ -6,9 +6,10 @@ import pygame
 
 class TwoAgentsEnv(gym.Env):
 
-    def __init__(self,grid_size=(5, 5), display = False,):
+    def __init__(self,grid_size=(5, 5), display = False, mlflow=True):
         super(TwoAgentsEnv, self).__init__()
 
+        self.mlflow = mlflow
         
         self.first_agent_position = (0,0)
         self.secend_agent_position = (0,4)
@@ -38,6 +39,10 @@ class TwoAgentsEnv(gym.Env):
                         9: (255, 0, 0),       # Red for the agent
                         8: (190, 0, 0)       # lighter red for the secend agent
                         }
+            self.font = pygame.font.Font(None, 30)  # Define the font for numbers
+
+        # if pygame:
+
             
     def make_grid(self) -> np.ndarray:
         grid = np.zeros((self.grid_width, self.grid_height), dtype=int)
@@ -58,6 +63,7 @@ class TwoAgentsEnv(gym.Env):
             grid[4,2] = 1
             grid[5,2] = 1
         return grid
+    
     
     
     def reset(self, seed=None, options=None):
@@ -171,6 +177,11 @@ class TwoAgentsEnv(gym.Env):
                     (col * self.cell_size, row * self.cell_size, self.cell_size, self.cell_size),
                     1
                 )
+                text = self.font.render(f"{col + row * self.grid_height}", True, (169, 169, 169))  # Draw the number (index as example)
+                text_rect = text.get_rect(center=(col * self.cell_size + self.cell_size // 2,
+                                                  row * self.cell_size + self.cell_size // 2))
+                
+                self.window.blit(text, text_rect)
         pygame.display.flip()
 
     
@@ -190,69 +201,50 @@ class TwoAgentsEnv(gym.Env):
 
 from Rl_run import learn_agent, make_Q_table_plot, get_sample_actions_Q_table, plot_mean_reward
 from Rl_agents import TabularQLearningAgent
-
+import mlflow
 
 if __name__ == "__main__":
 
-    env = TwoAgentsEnv(display=True)
+    env = TwoAgentsEnv(display=False, mlflow=True)
 
     agent = TabularQLearningAgent(number_of_action=16, 
                                 number_of_states=25*25, 
                                 γ=1.0,
-                                α=0.5, 
+                                α=0.1, 
                                 ε=0.99,
                                 α_decay=0.999, 
-                                ε_decay=0.999, 
-                                α_min=0.01, 
-                                ε_min=0.0)
-
-    # rewards = []
-    # eps = []
-    # for i in range(700):
-    #     obs, _ = env.reset()
-    #     total_reward = 0
-    #     done = False
-    #     while not done:
-    #         action, _ = agent.get_action(obs)
-    #         action = action.item()
-    #         next_obs, reward, done, _, _ = env.step(action)
-    #         total_reward += reward
-    #         # print(f"{reward=}")
-    #         # if i > 500:
-    #         #     env.render()
-    #         #     import time; time.sleep(0.1)
-            
-    #         # agent.process_transition(obs, action, reward, next_obs, done)
-    #         # obs = next_obs
-
-    #     rewards.append(total_reward)
-    #     eps.append(agent.ε)
-
-    # from Rl_run import plot_rewards
-    # plot_rewards(rewards, eps, 30)
-
-    env, agent = learn_agent(env, agent, episodes = 1, display=True)
+                                ε_decay=0.99999, 
+                                α_min=0.1, 
+                                ε_min=0.0005
+                                )
 
 
-    env = TwoAgentsEnv(display=True)
+    env, agent = learn_agent(env, agent, episodes = 1000, plot=False, display_qtable=False, display_pygame=False, mlflow=True)
+
+
+    env = TwoAgentsEnv(display=True, mlflow=True)
     obs, _ = env.reset()
     
     done = False
     np.random.seed(42)
+    i = 0
     while not done:
+        i+=1
         action = agent.get_action(obs)[0]
         action = action.item()
         obs, reward, done, _, _ = env.step(action)
         print(f"{obs=} {reward=}")
         env.render()
-        import time; time.sleep(0.7)
+        import time; time.sleep(0.5)
+        if i >1000:
+            break 
     
-    import matplotlib.pyplot as plt
+    # import matplotlib.pyplot as plt
     
-    fig, ax = plt.subplots(figsize=(4, 15))  # Set the figure size
-    ax.imshow(agent.Q, cmap='hot', aspect='auto', interpolation='nearest')
-    plt.title('Q-values Heatmap')
-    plt.show()
+    # fig, ax = plt.subplots(figsize=(4, 15))  # Set the figure size
+    # ax.imshow(agent.Q, cmap='hot', aspect='auto', interpolation='nearest')
+    # plt.title('Q-values Heatmap')
+    # plt.show()
 
     # from ploting import plot_graph
     # import networkx as nx
