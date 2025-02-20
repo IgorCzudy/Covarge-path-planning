@@ -2,7 +2,7 @@ import gymnasium as gym
 from gymnasium import spaces
 import numpy as np 
 import pygame
-
+import cv2
 
 class TwoAgentsEnv(gym.Env):
 
@@ -28,9 +28,9 @@ class TwoAgentsEnv(gym.Env):
         if display: 
             pygame.init()
             self.cell_size = 50  # Size of each grid cell in pixels
-            window_width = self.grid_width * self.cell_size
-            window_height = self.grid_height * self.cell_size
-            self.window = pygame.display.set_mode((window_width, window_height))
+            self.window_width = self.grid_width * self.cell_size
+            self.window_height = self.grid_height * self.cell_size
+            self.window = pygame.display.set_mode((self.window_width, self.window_height))
             
             self.colors = {
                         0: (255, 255, 255),  # White for empty cells
@@ -41,7 +41,15 @@ class TwoAgentsEnv(gym.Env):
                         }
             self.font = pygame.font.Font(None, 30)  # Define the font for numbers
 
-        # if pygame:
+        if display and mlflow:
+            self.video_path = "output.mp4"
+            self.fps = 1000
+            self.fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            self.video_writer = cv2.VideoWriter(self.video_path,
+                                                self.fourcc,
+                                                self.fps,
+                                                (self.window_width, self.window_height)
+                                                )
 
             
     def make_grid(self) -> np.ndarray:
@@ -182,6 +190,17 @@ class TwoAgentsEnv(gym.Env):
                                                   row * self.cell_size + self.cell_size // 2))
                 
                 self.window.blit(text, text_rect)
+        
+        if self.mlflow:
+            print("Writing frame to video")  # Debug line
+            frame = pygame.surfarray.array3d(self.window)
+            frame = np.rot90(frame)  # Rotate to match OpenCV format
+            frame = np.flip(frame, axis=1)  # Flip horizontally
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)  # Convert RGB to BGR for OpenCV
+            
+            self.video_writer.write(frame)  # Write frame to video
+
+
         pygame.display.flip()
 
     
@@ -196,6 +215,12 @@ class TwoAgentsEnv(gym.Env):
         out = n_first + n_secend * (self.grid_height*self.grid_width)
         assert 0 <= out <= 624
         return out
+    
+    def clean_after_running(self):
+        print("Releasing video writer...")
+        self.video_writer.release()
+        pygame.quit()
+
 
 
 
@@ -205,7 +230,7 @@ import mlflow
 
 if __name__ == "__main__":
 
-    env = TwoAgentsEnv(display=False, mlflow=True)
+    env = TwoAgentsEnv(display=False, mlflow=False)
 
     agent = TabularQLearningAgent(number_of_action=16, 
                                 number_of_states=25*25, 
@@ -219,7 +244,7 @@ if __name__ == "__main__":
                                 )
 
 
-    env, agent = learn_agent(env, agent, episodes = 1000, plot=False, display_qtable=False, display_pygame=False, mlflow=True)
+    env, agent = learn_agent(env, agent, episodes = 1000, plot=False, display_qtable=False, display_pygame=False, mlflow=False)
 
 
     env = TwoAgentsEnv(display=True, mlflow=True)
@@ -235,10 +260,16 @@ if __name__ == "__main__":
         obs, reward, done, _, _ = env.step(action)
         print(f"{obs=} {reward=}")
         env.render()
-        import time; time.sleep(0.5)
+        # import time; time.sleep(0.5)
         if i >1000:
             break 
+
+    env.clean_after_running()
     
+    mlflow.start_run()
+    mlflow.log_artifact("output.mp4")
+    mlflow.end_run()
+
     # import matplotlib.pyplot as plt
     
     # fig, ax = plt.subplots(figsize=(4, 15))  # Set the figure size
