@@ -58,14 +58,14 @@ class SimpleCovargePathPlanningEnv(gym.Env):
         grid[3,3] = 1
         grid[3,2] = 1
 
-        if self.grid_height > 6 and self.grid_with > 6:
-            grid[6,5] = 1
-            grid[5,6] = 1
-            grid[5,5] = 1
-            grid[6,6] = 1
+        # if self.grid_height > 6 and self.grid_with > 6:
+        #     grid[6,5] = 1
+        #     grid[5,6] = 1
+        #     grid[5,5] = 1
+        #     grid[6,6] = 1
 
-            grid[4,2] = 1
-            grid[5,2] = 1
+        #     grid[4,2] = 1
+        #     grid[5,2] = 1
         return grid
 
 
@@ -112,7 +112,7 @@ class SimpleCovargePathPlanningEnv(gym.Env):
             reward = -0.10
         
         elif self.grid[new_x, new_y] == 2: # move to alredy visited cell 
-            reward = -0.01
+            reward = -0.05
             self.agent_pos = [new_x, new_y]
          
         else: # move
@@ -181,20 +181,20 @@ from Rl_agents import TabularQLearningAgent
 if __name__ == "__main__":
 
 
-    env = SimpleCovargePathPlanningEnv(grid_size=(5,5),starting_point=(0, 0), display=False)
+    env = SimpleCovargePathPlanningEnv(grid_size=(5,5),starting_point=(0, 0), display=True)
 
     agent = TabularQLearningAgent(number_of_action=4, 
                                     number_of_states=25, 
                                     γ=1, 
                                     α=0.1, 
-                                    ε=0.99,
+                                    ε=0.0,
                                     α_decay=0.999, 
                                     ε_decay=0.9999, 
                                     α_min=0.0001, 
-                                    ε_min=0.01
+                                    ε_min=0.0
                                 )
 
-    env, agent = learn_agent(env, agent, episodes = 800, plot=True, display_qtable=False, display_pygame=False)
+    env, agent = learn_agent(env, agent, episodes = 15, plot=True, display_qtable=True, display_pygame=True)
 
 
     make_Q_table_plot(agent)
@@ -250,3 +250,4 @@ if __name__ == "__main__":
     graph = nx.Graph()
     graph.add_nodes_from([i for i in range(25)])
     plot_graph(graph, path)
+    

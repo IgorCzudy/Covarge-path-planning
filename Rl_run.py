@@ -35,10 +35,10 @@ def plot_rewards(rewards, steps_to_end, eps, roll):
     plt.tight_layout()
     plt.show()
 
-def update_q_heatmpa(agent, im, ax, episode, numberofsteps, text_annotations):
+def update_q_heatmpa(agent, im, ax, episode, numberofsteps, text_annotations, reward, action):
     
     im.set_data(agent.Q)  # Update the data of the heatmap
-    ax.set_title(f'Q-values Heatmap (episode: {episode} moves: {numberofsteps}) \nexplor. rate ε: {agent.ε}')  # Update title to show episode
+    ax.set_title(f'Q-values Heatmap (episode: {episode} moves: {numberofsteps}) \nexplor. rate ε: {agent.ε}, {reward=}, {action=}')  # Update title to show episode
 
     for annotation in text_annotations:
         annotation.remove()
@@ -60,8 +60,9 @@ def initial_q_heatmap(agent):
     return ax, im, text_annotations
 
 
-def learn_agent(env, agent, episodes=1000, plot=True, display_qtable=False, display_pygame=False, mlflow=True):
+def learn_agent(env, agent, writer=None, episodes=1000, plot=True, display_qtable=False, display_pygame=False):
 
+    i_eps=0
     rewards = []
     eps = []
     steps_to_end = []
@@ -89,14 +90,20 @@ def learn_agent(env, agent, episodes=1000, plot=True, display_qtable=False, disp
             if display_pygame:
                 env.render()
             if display_qtable: 
-                update_q_heatmpa(agent, im, ax, episode, numberofsteps, text_annotations)
+                update_q_heatmpa(agent, im, ax, episode, numberofsteps, text_annotations, reward, action)
 
             agent.process_transition(obs, action, reward, next_obs, done)
             obs = next_obs
             eps.append(agent.ε)
+            if writer is not None:
+                writer.add_scalar("eps", agent.ε, i_eps)
+            i_eps+=1
 
-        # env.change_starting_point()
-            
+        env.change_starting_point()
+        if writer is not None:
+            writer.add_scalar("Number of step in one epoch", numberofsteps, episode)
+            writer.add_scalar("total reward", total_reward, episode)
+
         steps_to_end.append(numberofsteps)
         rewards.append(total_reward)
         

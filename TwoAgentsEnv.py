@@ -2,14 +2,16 @@ import gymnasium as gym
 from gymnasium import spaces
 import numpy as np 
 import pygame
-import cv2
+from torch.utils.tensorboard import SummaryWriter
+import torch 
+import click
 
 class TwoAgentsEnv(gym.Env):
 
-    def __init__(self,grid_size=(5, 5), display = False, mlflow=True):
+    def __init__(self,grid_size=(5, 5), display = False, tensorb=True):
         super(TwoAgentsEnv, self).__init__()
 
-        self.mlflow = mlflow
+        self.tensorb = tensorb
         
         self.first_agent_position = (0,0)
         self.secend_agent_position = (0,4)
@@ -41,15 +43,8 @@ class TwoAgentsEnv(gym.Env):
                         }
             self.font = pygame.font.Font(None, 30)  # Define the font for numbers
 
-        if display and mlflow:
-            self.video_path = "output.mp4"
-            self.fps = 1000
-            self.fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            self.video_writer = cv2.VideoWriter(self.video_path,
-                                                self.fourcc,
-                                                self.fps,
-                                                (self.window_width, self.window_height)
-                                                )
+        if display and tensorb:
+            self.frames = []
 
             
     def make_grid(self) -> np.ndarray:
@@ -191,19 +186,15 @@ class TwoAgentsEnv(gym.Env):
                 
                 self.window.blit(text, text_rect)
         
-        if self.mlflow:
-            print("Writing frame to video")  # Debug line
+        if self.tensorb:
+            print("Writing frame to video")
             frame = pygame.surfarray.array3d(self.window)
-            frame = np.rot90(frame)  # Rotate to match OpenCV format
-            frame = np.flip(frame, axis=1)  # Flip horizontally
-            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)  # Convert RGB to BGR for OpenCV
-            
-            self.video_writer.write(frame)  # Write frame to video
-
+            frame = np.flip(frame, axis=1)
+            frame = np.rot90(frame)            
+            self.frames.append(frame)
 
         pygame.display.flip()
 
-    
 
     def _get_observation(self):
 
@@ -216,59 +207,83 @@ class TwoAgentsEnv(gym.Env):
         assert 0 <= out <= 624
         return out
     
-    def clean_after_running(self):
-        print("Releasing video writer...")
-        self.video_writer.release()
-        pygame.quit()
-
+    def get_video_tensor(self):
+        video = np.array(self.frames)
+        video = np.expand_dims(video, axis=0)
+        video = video.astype(np.uint8)
+        video = torch.from_numpy(video)
+        video_transposed = video.permute(0, 1, 4, 2, 3)
+        return video_transposed
 
 
 
 from Rl_run import learn_agent, make_Q_table_plot, get_sample_actions_Q_table, plot_mean_reward
 from Rl_agents import TabularQLearningAgent
-import mlflow
 
-if __name__ == "__main__":
+@click.command()
+@click.option("--gamma", type=float, default=1.0, help="Discount factor for future rewards")
+@click.option("--alpha", type=float, default=0.1, help="Learning rate")
+@click.option("--epsilon", type=float, default=0.99, help="Exploration rate")
+@click.option("--alpha_decay", type=float, default=0.999, help="Decay rate for alpha")
+@click.option("--epsilon_decay", type=float, default=0.99999, help="Decay rate for epsilon")
+@click.option("--alpha_min", type=float, default=0.1, help="Minimum value for alpha")
+@click.option("--epsilon_min", type=float, default=0.0005, help="Minimum value for epsilon")
+@click.option("--episodes", type=int, default=500, help="Number of episodes for training")
+def main(gamma, alpha, epsilon, alpha_decay, epsilon_decay, alpha_min, epsilon_min, episodes):
+    writer = SummaryWriter(f"runs/two_agent_episodes={episodes}_gamma={gamma}_alpha={alpha}_epsilon={epsilon}_alpha_decay={alpha_decay}_epsilon_decay={epsilon_decay}_alpha_min={alpha_min}_epsilon_min={epsilon_min}")
+    
+    number_of_action=16
+    number_of_states=25*25
+    writer.add_hparams({"number_of_action": number_of_action,
+                        "number_of_states": number_of_states,
+                        "γ": gamma,        # Use "gamma" instead of "γ"
+                        "α": alpha,        # Use "alpha" instead of "α"
+                        "ε": epsilon,     # Use "epsilon" instead of "ε"
+                        "α_decay": alpha_decay,
+                        "ε_decay": epsilon_decay,
+                        "α_min": alpha_min,
+                        "ε_min": epsilon_min,
+                        "episodes": episodes},
+                        {})
 
-    env = TwoAgentsEnv(display=False, mlflow=False)
 
-    agent = TabularQLearningAgent(number_of_action=16, 
-                                number_of_states=25*25, 
-                                γ=1.0,
-                                α=0.1, 
-                                ε=0.99,
-                                α_decay=0.999, 
-                                ε_decay=0.99999, 
-                                α_min=0.1, 
-                                ε_min=0.0005
+    env = TwoAgentsEnv(display=True, tensorb=True)
+    agent = TabularQLearningAgent(number_of_action=number_of_action, 
+                                number_of_states=number_of_states, 
+                                γ=gamma,
+                                α=alpha, 
+                                ε=epsilon,
+                                α_decay=alpha_decay, 
+                                ε_decay=epsilon_decay, 
+                                α_min=alpha_min, 
+                                ε_min=epsilon_min
                                 )
 
+    env, agent = learn_agent(env, agent, writer, episodes = episodes, plot=False, display_qtable=False, display_pygame=True)
 
-    env, agent = learn_agent(env, agent, episodes = 1000, plot=False, display_qtable=False, display_pygame=False, mlflow=False)
 
-
-    env = TwoAgentsEnv(display=True, mlflow=True)
-    obs, _ = env.reset()
-    
+    env = TwoAgentsEnv(display=True, tensorb=True)
+    obs, _ = env.reset()    
     done = False
     np.random.seed(42)
-    i = 0
+    step = 0
     while not done:
-        i+=1
+        step += 1
         action = agent.get_action(obs)[0]
         action = action.item()
         obs, reward, done, _, _ = env.step(action)
         print(f"{obs=} {reward=}")
         env.render()
-        # import time; time.sleep(0.5)
-        if i >1000:
+        video_tensor = env.get_video_tensor()
+        last_frame = video_tensor[-1, -1]
+        writer.add_image("TwoAgents Simulation", last_frame, global_step=step)
+
+        if step >80:
             break 
 
-    env.clean_after_running()
-    
-    mlflow.start_run()
-    mlflow.log_artifact("output.mp4")
-    mlflow.end_run()
+    video_tensor = env.get_video_tensor()
+    writer.add_video("Full TwoAgents Simulation", video_tensor, fps=1)
+    writer.close()
 
     # import matplotlib.pyplot as plt
     
@@ -282,15 +297,7 @@ if __name__ == "__main__":
     # graph = nx.Graph()
     # graph.add_nodes_from([i for i in range(25)])
     # plot_graph(graph, path)
-
-
-    # obs, _ = env.reset()
     
-    # done = False
-    # np.random.seed(42)
-    # while not done:
-    #     action = np.random.randint(16)
-    #     next_obs, reward, done, _, _ = env.step(action)
-    #     env.render()
-    #     import time; time.sleep(0.1)
-        
+
+if __name__ == "__main__":
+    main()
