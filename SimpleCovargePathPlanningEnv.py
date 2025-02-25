@@ -115,6 +115,9 @@ class SimpleCovargePathPlanningEnv(gym.Env):
         self.draw_grid(render_grid)
 
     def draw_grid(self, render_grid):
+
+        
+
         
         self.window.fill((0, 0, 0))  # Black background
         for row in range(self.grid_width):
@@ -190,7 +193,7 @@ if __name__ == "__main__":
         display_qtable=True,
         display_pygame=True,
         change_starting_point=False,
-        debug_mode=True,
+        debug_mode=False,
     )
 
     make_Q_table_plot(agent)

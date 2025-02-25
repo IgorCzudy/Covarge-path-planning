@@ -270,7 +270,7 @@ def main(
         env,
         agent,
         writer,
-        episodes=15,
+        episodes=episodes,
         plot=False,
         display_qtable=False,
         display_pygame=False,
@@ -283,7 +283,7 @@ def main(
     done = False
     np.random.seed(42)
     step = 0
-    
+
     agent.ε = 0
     while not done:
         step += 1

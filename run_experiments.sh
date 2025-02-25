@@ -11,18 +11,21 @@
 
 # Define epsilon_decay values for each episodes count
 declare -A epsilon_decay_map
+epsilon_decay_map[20000]="0.9999 0.997"
+epsilon_decay_map[30000]="0.9999 0.997 "
 
-epsilon_decay_map[500]="0.99 0.995"
-epsilon_decay_map[1000]="0.99 0.995"
-epsilon_decay_map[1500]="0.995 0.997"
-epsilon_decay_map[2500]="0.997 0.999"
-epsilon_decay_map[4000]="0.999 0.998"
-epsilon_decay_map[6000]="0.999 0.998 0.9995"
-epsilon_decay_map[10000]="0.9995 0.9997 0.9993 0.999"
+# epsilon_decay_map[500]="0.99 0.995"
+# epsilon_decay_map[1000]="0.99 0.995"
+# epsilon_decay_map[1500]="0.995 0.997"
+# epsilon_decay_map[2500]="0.997 0.999"
+# epsilon_decay_map[4000]="0.999 0.998"
+# epsilon_decay_map[6000]="0.999 0.998 0.9995"
+# epsilon_decay_map[10000]="0.9995 0.9997 0.9993 0.999"
 
-for episodes in 500 1000 1500 2500 4000 6000 10000
+# for episodes in 500 1000 1500 2500 4000 6000 10000
+for episodes in 20000 30000
 do
-  for epsilon_min in 0.01
+  for epsilon_min in 0.01 0.0001
   do
     for epsilon_decay in ${epsilon_decay_map[$episodes]}  # Loop over multiple values
     do
