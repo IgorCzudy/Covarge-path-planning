@@ -3,7 +3,10 @@ import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import pygame
-
+import gymnasium as gym
+from typing import Optional, List, Dict, Tuple
+from Rl_agents import Agent
+from torch.utils.tensorboard import SummaryWriter
 
 
 int_to_act = {0: "Move up", 1: "Move down", 2: "Move left", 3: "Move right"}
@@ -22,7 +25,6 @@ def plot_rewards(rewards, steps_to_end, eps, roll):
     ax[0].set_xlabel("Number of episodes")
     ax[0].set_ylabel("Rewards")
 
-
     ax2 = ax[0].twinx()
     ax2.plot(steps_to_end, label="Number of steps of episode", color="b")
     ax2.set_ylabel("Number of steps of episode")
@@ -31,7 +33,6 @@ def plot_rewards(rewards, steps_to_end, eps, roll):
     lines = ax[0].get_lines() + ax2.get_lines()
     labels = [line.get_label() for line in lines]
     ax[0].legend(lines, labels, loc="lower left")
-
 
     ax[1].plot(eps, label="Epsilon", color="g")
     ax[1].set_xlabel("Number of steps")
@@ -92,10 +93,9 @@ def initial_q_heatmap(agent):
     return im, []
 
 
-
-def pygame_waiting():
+def pygame_waiting() -> None:
     print("Press any key to continue")
-    while True:# waiting for button press
+    while True:  # waiting for button press
         event = pygame.event.wait()
         if event.type == pygame.QUIT:
             pygame.quit()
@@ -106,22 +106,22 @@ def pygame_waiting():
 
 
 def learn_agent(
-    env,
-    agent,
-    writer=None,
-    episodes=100,
-    plot=True,
-    display_qtable=False,
-    display_pygame=False,
-    change_starting_point=False,
-    debug_mode=False,
-):
+    env: gym.Env,
+    agent: Agent,
+    writer: Optional[SummaryWriter] = None,
+    episodes: int = 100,
+    plot: bool = True,
+    display_qtable: bool = False,
+    display_pygame: bool = False,
+    change_starting_point: bool = False,
+    debug_mode: bool = False,
+) -> Tuple[gym.Env, Agent]:
 
-    i_eps = 0
-    reward = None
-    rewards = []
-    eps = []
-    steps_to_end = []
+    i_eps: int = 0
+    reward: bool = None
+    rewards: List[int] = []
+    eps: List[int] = []
+    steps_to_end: List[int] = []
 
     if display_qtable:
         im, text_annotations = initial_q_heatmap(agent)
@@ -133,27 +133,35 @@ def learn_agent(
         numberofsteps = 0
         while not done:
             numberofsteps += 1
-            
+
             action, _ = agent.get_action(obs)
             action = action.item()
 
             if display_qtable:
+                if env.action_space.n  <= 4:
+                    a = int_to_act[action]
+                else:
+                    first_agent_action = action % 4
+                    secend_agent_action = action // 4
+                    a = (int_to_act[first_agent_action], int_to_act[secend_agent_action])
+
                 update_q_heatmpa(
                     agent,
                     im,
                     text_annotations,
-                    title=f"""Q-values Heatmap (episode: {episode} moves: {numberofsteps})\n explor. rate ε: {agent.ε:.2f},\n received reword: {reward},\n action: {int_to_act[action]}""",
+                    title=f"""Q-values Heatmap (episode: {episode} moves: {numberofsteps})\n explor. rate ε: {agent.ε:.2f},\n received reword: {reward},\n action: {a}""",
                 )
             if display_pygame:
                 env.render()
             if debug_mode:
                 pygame_waiting()
 
-            # first_agent_action = action % 4
-            # secend_agent_action = action // 4
-            # print(f"Received reword: {reward}")
-            # print(f"First agent action: {int_to_act[first_agent_action]}")
-            # print(f"Secend agent action: {int_to_act[secend_agent_action]}")
+                if env.action_space.n == 16:
+                    first_agent_action = action % 4
+                    secend_agent_action = action // 4
+                    print(f"Received reword: {reward}")
+                    print(f"First agent action: {int_to_act[first_agent_action]}")
+                    print(f"Secend agent action: {int_to_act[secend_agent_action]}")
 
             next_obs, reward, done, _, _ = env.step(action)
             total_reward += reward
@@ -182,30 +190,7 @@ def learn_agent(
     return env, agent
 
 
-def plot_mean_reward(env, model, sample=100):
-    scores = []
-    for _ in range(sample):
-        observation, _ = env.reset()
-        score = 0
-        while True:
-            action, _ = model.predict(observation)
-            action = action.item()
-            # action = env.action_space.sample()
-            observation, reward, done, _, _ = env.step(action)
-            score += reward
-            if done:
-                break
-        scores.append(score)
-    plt.subplots()
-    plt.hist(scores, label="scores")
-    plt.xlabel("score")
-    plt.axvline(np.mean(scores), color="k", label="mean")
-    plt.legend(loc="upper right")
-    print("mean score", np.mean(scores))
-    plt.show()
-
-
-def get_new_point_from_action(last_point, action, grid_size, env):
+def get_new_point_from_action(last_point: Tuple[int, int], action: int, grid_size: int, env: gym.Env):
     new_x, new_y = last_point
     x, y = last_point
     if action == 0 and x > 0:  # Move up
@@ -225,13 +210,18 @@ def get_new_point_from_action(last_point, action, grid_size, env):
         return (new_x, new_y)
 
 
-def get_sample_actions_Q_table(env, agent, starting_point=(0, 0)):
+def get_sample_actions_Q_table(
+    env: gym.Env,
+    agent: Agent,
+    starting_point: Tuple[int, int] = (0, 0),
+    process_transition: bool = True,
+) -> Tuple[List[int], List[int]]:
 
-    actions = []
-    points = [starting_point]
-    grid_size = env.grid_width
-    move_out_of_boundry = 0
-    move_to_obs = 0
+    actions: List[int] = []
+    points: List[Tuple[int, int]] = [starting_point]
+    grid_size: int = env.grid_width
+    move_out_of_boundry: int = 0
+    move_to_obs: int = 0
 
     observation, _ = env.reset()
     while True:
@@ -252,14 +242,18 @@ def get_sample_actions_Q_table(env, agent, starting_point=(0, 0)):
 
         env.render()
         print(int_to_act[action])
-        import time
+        import time; time.sleep(0.15)
 
-        time.sleep(0.15)
-        observation, _, done, _, _ = env.step(action)
+        next_obs, reward, done, _, _ = env.step(action)
+        if process_transition:
+            agent.process_transition(observation, action, reward, next_obs, done)
+        observation = next_obs
+
+        # observation, _, done, _, _ = env.step(action)
         if done:
             break
 
-    path = [point[1] + point[0] * env.grid_width for point in points]
+    path: List[int] = [point[1] + point[0] * env.grid_width for point in points]
 
     print(f"{move_out_of_boundry=}")
     print(f"{move_to_obs=}")
@@ -268,13 +262,96 @@ def get_sample_actions_Q_table(env, agent, starting_point=(0, 0)):
     return actions, path
 
 
-def get_sample_actions(env, agent, starting_point=(0, 0)):
+def get_sample_actions_Q_table_two_agents(
+    env: gym.Env,
+    agent: Agent,
+    firs_starting_point: Tuple[int, int] = (0, 0),
+    secend_starting_point: Tuple[int, int] = (4, 4),
+    process_transition: bool = True,
+) -> Tuple[List[int], List[int]]:
 
-    actions = []
-    points = [starting_point]
-    grid_size = 10
-    move_out_of_boundry = 0
-    move_to_obs = 0
+    first_actions: List[int] = []
+    secend_actions: List[int] = []
+    first_agent_points: List[Tuple[int, int]] = [firs_starting_point]
+    secend_agent_points: List[Tuple[int, int]] = [secend_starting_point]
+
+    grid_size: int = env.grid_width
+    move_out_of_boundry: int = 0
+    move_to_obs: int = 0
+
+    observation, _ = env.reset()
+    while True:
+        action, _ = agent.get_the_best_action(observation)
+        action = action.item()
+
+        first_agent_action = action % 4
+        secend_agent_action = action // 4
+        first_actions.append(first_agent_action)
+        secend_actions.append(secend_agent_action)
+        # 0: move up, 1: move down, 2: move left, 3: move right
+        moves = {0: (-1, 0), 1: (1, 0), 2: (0, -1), 3: (0, 1)}
+
+        for i, (agent_position, a) in enumerate(
+            [
+                (first_agent_points[-1], first_actions[-1]),
+                (secend_agent_points[-1], secend_actions[-1]),
+            ]
+        ):
+            x, y = agent_position
+            dx, dy = moves[a]
+            new_x, new_y = x + dx, y + dy
+            if not (
+                0 <= new_x < grid_size and 0 <= new_y < grid_size
+            ):  # move out of bandry
+                print("move_out_of_boundry")
+                move_out_of_boundry += 1
+
+            elif env.grid[new_x, new_y] == 1:  # Obstacle
+                print("move_to_obs")
+                move_to_obs += 1
+
+            else:
+                if i == 0:
+                    first_agent_points.append((new_x, new_y))
+                else:
+                    secend_agent_points.append((new_x, new_y))
+
+        env.render()
+        import time
+
+        time.sleep(0.15)
+
+        next_obs, reward, done, _, _ = env.step(action)
+        if process_transition:
+            agent.process_transition(observation, action, reward, next_obs, done)
+        observation = next_obs
+        if done:
+            break
+
+    first_agent_path: List[int] = [
+        point[1] + point[0] * env.grid_width for point in first_agent_points
+    ]
+    secend_agent_path: List[int] = [
+        point[1] + point[0] * env.grid_width for point in secend_agent_points
+    ]
+
+    print(f"{move_out_of_boundry=}")
+    print(f"{move_to_obs=}")
+    print(f"{first_agent_path=}")
+    print(f"{secend_agent_path=}")
+
+    return first_agent_path, secend_agent_path
+
+
+def get_sample_actions(
+    env: gym.Env, agent: Agent, starting_point: Tuple[int, int] = (0, 0)
+) -> tuple[List[int], List[int]]:
+
+    actions: List[int] = []
+    points: List[Tuple[int, int]] = [starting_point]
+    grid_size: int = 10
+    move_out_of_boundry: int = 0
+    move_to_obs: int = 0
 
     observation, _ = env.reset()
     while True:
@@ -295,9 +372,11 @@ def get_sample_actions(env, agent, starting_point=(0, 0)):
 
         env.render()
         print(int_to_act[action])
+
         import time
 
         time.sleep(1)
+
         observation, _, done, _, _ = env.step(action)
         if done:
             break
@@ -311,7 +390,7 @@ def get_sample_actions(env, agent, starting_point=(0, 0)):
     return actions, path
 
 
-def make_Q_table_plot(agent):
+def make_Q_table_plot(agent: Agent, save: bool = False):
 
     plt.figure(figsize=(4, 15))  # Adjust the size of the figure (width=15, height=3)
 
@@ -328,9 +407,32 @@ def make_Q_table_plot(agent):
                 color="black",
                 fontsize=8,
             )
-
-    np.save("Q_table.npy", agent.Q)
+    if save:
+        np.save("Q_table.npy", agent.Q)
+        plt.savefig("Q_table.jpg")
 
     plt.title("Q table")
-    plt.savefig("Q_table.jpg")
+    plt.show()
+
+
+def plot_mean_reward(env: gym.Env, agent: Agent, sample: int = 100) -> None:
+    scores: List[int] = []
+
+    for _ in range(sample):
+        observation, _ = env.reset()
+        score = 0
+        while True:
+            action, _ = agent.predict(observation)
+            action = action.item()
+            observation, reward, done, _, _ = env.step(action)
+            score += reward
+            if done:
+                break
+        scores.append(score)
+    plt.subplots()
+    plt.hist(scores, label="scores")
+    plt.xlabel("score")
+    plt.axvline(np.mean(scores), color="k", label="mean")
+    plt.legend(loc="upper right")
+    print("mean score", np.mean(scores))
     plt.show()
