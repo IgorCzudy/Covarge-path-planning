@@ -1,0 +1,279 @@
+from Rl_agents import TabularQLearningAgent
+import gymnasium as gym
+from gymnasium import spaces
+import numpy as np
+from typing import Tuple, List, Dict, Optional
+import pygame
+from tqdm import tqdm
+import matplotlib.pyplot as plt 
+
+class TwoQTable(): #gym.Env
+    
+    def __init__(self, grid_size: Tuple[int, int] = (5, 5), display: bool = False, map_number: int = 0):
+        # super(TwoQTable, self).__init__()
+        self.map_number = map_number
+
+        self.first_agent_position: Tuple[int, int] = (0, 0)
+        self.secend_agent_position: Tuple[int, int] = (4, 4)
+
+        self.grid_width: int = grid_size[0]
+        self.grid_height: int = grid_size[1]
+        self.num_of_steps: int = 0
+
+        self.grid: Optional[np.dnarray] = None
+
+        self.action_space1: spaces.Discrete = spaces.Discrete(4)
+        self.action_space2: spaces.Discrete = spaces.Discrete(4)
+
+        n = self.grid_width * self.grid_height
+        self.observation_space1: spaces.Discrete = spaces.Discrete(n)
+        self.observation_space2: spaces.Discrete = spaces.Discrete(n)
+
+
+        if display:
+            pygame.init()
+            self.cell_size: int = 50  # Size of each grid cell in pixels
+            self.window_width: int = self.grid_width * self.cell_size
+            self.window_height: int = self.grid_height * self.cell_size
+            self.window = pygame.display.set_mode(
+                (self.window_width, self.window_height)
+            )
+
+            self.colors = {
+                0: (255, 255, 255),  # White for empty cells
+                1: (0, 0, 0),  # Green for obstacles
+                2: (0, 255, 0),  # Green for visited cell by first agent
+                3: (0, 100, 0),  # Less green for visited cell by secend agent
+                9: (255, 0, 0),  # Red for the agent
+                8: (150, 0, 0),  # lighter red for the secend agent
+            }
+            self.font = pygame.font.Font(None, 30)  # Define the font for numbers
+
+    def make_grid(self) -> np.ndarray:
+        grid = np.zeros((self.grid_width, self.grid_height), dtype=int)
+
+        if self.map_number == 0:
+            grid[0, 2] = 1
+            grid[2, 3] = 1
+            grid[2, 2] = 1
+            grid[3, 3] = 1
+            grid[3, 2] = 1
+            return grid
+        
+
+    def _get_observation(self, agent_number: int) -> int:
+
+        agent_position = self.first_agent_position if agent_number==0 else self.secend_agent_position 
+        n = (
+            agent_position[1]
+            + agent_position[0] * self.grid_height
+        )
+        assert 0 <= n <= 24
+        return n
+
+    def reset(self, seed: Optional[int] = None, options=None) -> Tuple[int, int, Dict]:
+        # super().reset(seed=seed)
+
+        self.grid = self.make_grid()
+        self.grid[self.first_agent_position] = 2
+        self.grid[self.secend_agent_position] = 3
+
+        return self._get_observation(agent_number=0), self._get_observation(agent_number=1), {}
+
+    def step(self, action1: int, action2: int) -> Tuple[int, int, int, int, bool, bool, Dict]:
+        assert 0 <= action1 <= 15, "action must be in the range from 0 to 15"
+        assert 0 <= action2 <= 15, "action must be in the range from 0 to 15"
+        self.num_of_steps += 1
+
+        # 0: move up, 1: move down, 2: move left, 3: move right
+        moves = {0: (-1, 0), 1: (1, 0), 2: (0, -1), 3: (0, 1)}
+
+        reword ={0: 0, 1: 0} #agent_number: reword
+        for i, (agent_position, action) in enumerate([(self.first_agent_position, action1), (self.secend_agent_position, action2)]):
+            x, y = agent_position
+            dx, dy = moves[action]
+            new_x, new_y = x + dx, y + dy
+            if not (0 <= new_x < self.grid_width and 0 <= new_y < self.grid_height): #move out of bandry
+                reword[i] -= 0.1
+
+            elif self.grid[new_x, new_y] == 1:  # Obstacle
+                reword[i] -= 0.1
+            
+            elif i==1 and (new_x, new_y) == self.first_agent_position:  # Collision ONLY SECEND AGENT CAN MAKE COLLISON, BECOUSE FIRST AGENT MOVE FIRST
+                reword[i] -= 0.1
+            
+
+            elif self.grid[new_x, new_y] == 2 or self.grid[new_x, new_y] == 3:  # Visited cell
+                if i==0:
+                    self.first_agent_position = new_x, new_y
+                    self.grid[new_x, new_y] = 2
+                else:
+                    self.secend_agent_position = new_x, new_y
+                    self.grid[new_x, new_y] = 3
+                reword[i] -= 0.01
+
+            else:  # New valid move
+                if i==0:
+                    self.first_agent_position = new_x, new_y
+                    self.grid[new_x, new_y] = 2
+                else:
+                    self.secend_agent_position = new_x, new_y
+                    self.grid[new_x, new_y] = 3
+                reword[i] += 0.1
+        
+        done = False
+        if np.all((self.grid == 2) | (self.grid == 3) | (self.grid == 1)):
+            reword[0] += 1
+            reword[1] += 1
+            done = True
+
+        return self._get_observation(0), self._get_observation(1), reword[0], reword[1], done, False, {}
+
+        
+    def render(self, mode="human") -> None:
+        render_grid = self.grid.copy()
+        render_grid[self.first_agent_position] = 9
+        render_grid[self.secend_agent_position] = 8
+        
+        
+        self.window.fill((0, 0, 0))  # Black background
+
+        for row in range(self.grid_width):
+            for col in range(self.grid_height):
+                value = render_grid[row, col]
+                color = self.colors.get(
+                    value, (0, 0, 0)
+                )  # Default to black for unknown values
+                pygame.draw.rect(
+                    self.window,
+                    color,
+                    (
+                        col * self.cell_size,
+                        row * self.cell_size,
+                        self.cell_size,
+                        self.cell_size,
+                    ),
+                )
+
+                pygame.draw.rect(
+                    self.window,
+                    (0, 0, 0),
+                    (
+                        col * self.cell_size,
+                        row * self.cell_size,
+                        self.cell_size,
+                        self.cell_size,
+                    ),
+                    1,
+                )
+                text = self.font.render(
+                    f"{col + row * self.grid_height}", True, (169, 169, 169)
+                )  # Draw the number (index as example)
+                text_rect = text.get_rect(
+                    center=(
+                        col * self.cell_size + self.cell_size // 2,
+                        row * self.cell_size + self.cell_size // 2,
+                    )
+                )
+
+                self.window.blit(text, text_rect)
+
+
+        pygame.display.flip()
+
+
+if __name__ == "__main__":
+
+    agent1 = TabularQLearningAgent(
+        number_of_action=4,
+        number_of_states=25,
+        γ=1,
+        α=0.1,
+        ε=0.9999,
+        α_decay=0.999,
+        ε_decay=0.9999,
+        α_min=0.1,
+        ε_min=0.0,
+    )
+    agent2 = TabularQLearningAgent(
+        number_of_action=4,
+        number_of_states=25,
+        γ=1,
+        α=0.1,
+        ε=0.9999,
+        α_decay=0.999,
+        ε_decay=0.9999,
+        α_min=0.1,
+        ε_min=0.0,
+    )
+    env = TwoQTable(grid_size=(5, 5), display=False, map_number=0)
+    episodes=2000
+    rewords1, reowrds2, rewords_sum, εs = [], [], [], []
+    for episode in tqdm(range(episodes)):
+        obs1, obs2, _ = env.reset()
+        done = False
+        rew1, rew2, rew_sum =0, 0, 0 
+        while not done:
+            action1, _ = agent1.get_action(obs1)
+            action2, _ = agent1.get_action(obs2)
+            action1 = action1.item()
+            action2 = action2.item()
+
+            next_obs1, next_obs2, reward1, reward2, done, _, _ = env.step(action1, action2)
+            rew1 += reward1
+            rew2 += reward2
+            rew_sum += (reward1+ reward2)
+            
+            εs.append(agent1.ε)
+            
+            agent1.process_transition(obs1, action1, reward1, next_obs1, done)
+            agent2.process_transition(obs2, action2, reward2, next_obs2, done)
+            obs1 = next_obs1
+            obs2 = next_obs2
+        rewords1.append(rew1)
+        reowrds2.append(rew2)
+        rewords_sum.append(rew_sum)
+    
+    fig, (ax1, ax2) = plt.subplots(2, 1, layout='constrained')
+    import pandas as pd 
+    ax1.plot(np.arange(len(pd.Series(rewords1).rolling(50).mean())), 
+             pd.Series(rewords1).rolling(50).mean(), 
+             np.arange(len(pd.Series(reowrds2).rolling(50).mean())), 
+             pd.Series(reowrds2).rolling(50).mean())
+            #  rewords_sum)
+    ax2.plot(np.arange(len(εs)), εs)
+    plt.show()
+
+    env = TwoQTable(grid_size=(5, 5), display=True, map_number=0)
+    obs1, obs2, _ = env.reset()
+    done = False
+    while not done:
+        action1, _ = agent1.get_action(obs1)
+        action2, _ = agent1.get_action(obs2)
+        action1 = action1.item()
+        action2 = action2.item()
+        env.render()
+
+        int_to_act = {0: "Move up", 1: "Move down", 2: "Move left", 3: "Move right"}
+        print(f"agent1: {int_to_act[action1]}, agent2: {int_to_act[action2]}")
+        print(f"obs1: {obs1}, obs2: {obs2}")
+
+        print("Press any key to continue")
+        while True:  # waiting for button press
+            event = pygame.event.wait()
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            elif event.type == pygame.KEYDOWN:
+                print("Key 'n' pressed! Moving to the next iteration.")
+                break
+
+        next_obs1, next_obs2, reward1, reward2, done, _, _ = env.step(action1, action2)
+        print(f"{reward1=}, {reward2=}")
+
+        agent1.process_transition(obs1, action1, reward1, next_obs1, done)
+        agent2.process_transition(obs2, action2, reward2, next_obs2, done)
+        obs1 = next_obs1
+        obs2 = next_obs2
+
+    
