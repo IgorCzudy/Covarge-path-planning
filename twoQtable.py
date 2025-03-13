@@ -60,6 +60,13 @@ class TwoQTable(): #gym.Env
             grid[3, 2] = 1
             return grid
         
+        if self.map_number == 1:
+            grid[1,1] = 1
+            grid[1,2] = 1 
+            grid[2,1] = 1
+            grid[2,2] = 1
+            grid[3,3] = 1
+            return grid
 
     def _get_observation(self, agent_number: int) -> int:
 
@@ -99,8 +106,8 @@ class TwoQTable(): #gym.Env
             elif self.grid[new_x, new_y] == 1:  # Obstacle
                 reword[i] -= 0.1
             
-            elif i==1 and (new_x, new_y) == self.first_agent_position:  # Collision ONLY SECEND AGENT CAN MAKE COLLISON, BECOUSE FIRST AGENT MOVE FIRST
-                reword[i] -= 0.1
+            # elif i==1 and (new_x, new_y) == self.first_agent_position:  # Collision ONLY SECEND AGENT CAN MAKE COLLISON, BECOUSE FIRST AGENT MOVE FIRST
+            #     reword[i] = -0.1
             
 
             elif self.grid[new_x, new_y] == 2 or self.grid[new_x, new_y] == 3:  # Visited cell
@@ -110,7 +117,7 @@ class TwoQTable(): #gym.Env
                 else:
                     self.secend_agent_position = new_x, new_y
                     self.grid[new_x, new_y] = 3
-                reword[i] -= 0.01
+                reword[i] -= 0.5 #0.01
 
             else:  # New valid move
                 if i==0:
@@ -119,12 +126,12 @@ class TwoQTable(): #gym.Env
                 else:
                     self.secend_agent_position = new_x, new_y
                     self.grid[new_x, new_y] = 3
-                reword[i] += 0.1
+                reword[i] += 0.5
         
         done = False
         if np.all((self.grid == 2) | (self.grid == 3) | (self.grid == 1)):
-            reword[0] += 1
-            reword[1] += 1
+            reword[0] = 1
+            reword[1] = 1
             done = True
 
         return self._get_observation(0), self._get_observation(1), reword[0], reword[1], done, False, {}
@@ -190,8 +197,8 @@ if __name__ == "__main__":
         γ=1,
         α=0.1,
         ε=0.9999,
-        α_decay=0.999,
-        ε_decay=0.9999,
+        α_decay=0.99,
+        ε_decay=0.999,
         α_min=0.1,
         ε_min=0.0,
     )
@@ -201,13 +208,13 @@ if __name__ == "__main__":
         γ=1,
         α=0.1,
         ε=0.9999,
-        α_decay=0.999,
-        ε_decay=0.9999,
+        α_decay=0.99,
+        ε_decay=0.999, # ε_decay=0.9999, for grid = 0
         α_min=0.1,
         ε_min=0.0,
     )
     env = TwoQTable(grid_size=(5, 5), display=False, map_number=0)
-    episodes=2000
+    episodes=110
     rewords1, reowrds2, rewords_sum, εs = [], [], [], []
     for episode in tqdm(range(episodes)):
         obs1, obs2, _ = env.reset()
@@ -215,7 +222,7 @@ if __name__ == "__main__":
         rew1, rew2, rew_sum =0, 0, 0 
         while not done:
             action1, _ = agent1.get_action(obs1)
-            action2, _ = agent1.get_action(obs2)
+            action2, _ = agent2.get_action(obs2) #agent1
             action1 = action1.item()
             action2 = action2.item()
 
@@ -234,14 +241,24 @@ if __name__ == "__main__":
         reowrds2.append(rew2)
         rewords_sum.append(rew_sum)
     
-    fig, (ax1, ax2) = plt.subplots(2, 1, layout='constrained')
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6))
     import pandas as pd 
     ax1.plot(np.arange(len(pd.Series(rewords1).rolling(50).mean())), 
-             pd.Series(rewords1).rolling(50).mean(), 
-             np.arange(len(pd.Series(reowrds2).rolling(50).mean())), 
-             pd.Series(reowrds2).rolling(50).mean())
-            #  rewords_sum)
-    ax2.plot(np.arange(len(εs)), εs)
+             pd.Series(rewords1).rolling(50).mean(),
+             label="reward of 1 agent",)
+     
+    ax1.plot(np.arange(len(pd.Series(reowrds2).rolling(50).mean())), 
+             pd.Series(reowrds2).rolling(50).mean(),
+             label="reward of 2 agent",)
+    ax1.set_xlabel('Episodes')
+    ax1.set_ylabel('Rewords')
+    ax1.legend()
+            
+    ax2.plot(np.arange(len(εs)), εs, label='Epsilon')
+    ax2.legend()
+    ax2.set_xlabel('Moves')
+    ax2.set_ylabel('Epsilon')
+    plt.subplots_adjust(hspace=0.6)
     plt.show()
 
     env = TwoQTable(grid_size=(5, 5), display=True, map_number=0)
