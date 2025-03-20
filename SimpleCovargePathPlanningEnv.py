@@ -15,7 +15,7 @@ class SimpleCovargePathPlanningEnv(gym.Env):
         grid_size: Tuple[int, int] = (5, 5),
         display: bool = False,
         starting_point: Tuple[int, int] = (0, 0),
-        map_number: Optional[int] = None,
+        map_number: Optional[int] = 0,
     ):
         super(SimpleCovargePathPlanningEnv, self).__init__()
 
@@ -50,7 +50,7 @@ class SimpleCovargePathPlanningEnv(gym.Env):
     def make_grid(self) -> np.ndarray:
         grid: np.ndarray = np.zeros((self.grid_width, self.grid_height), dtype=int)
 
-        if self.map_number is None:
+        if self.map_number == 0:
             # obstycle
             grid[0, 2] = 1
             grid[2, 3] = 1
@@ -62,6 +62,114 @@ class SimpleCovargePathPlanningEnv(gym.Env):
         if self.map_number == 1:
             # obstycle
             grid[2, 2] = 1
+            return grid
+
+        elif self.map_number == 2:
+            grid[1,1] = 1
+            grid[1,2] = 1
+            grid[1,3] = 1
+            grid[2,1] = 1
+            grid[2,2] = 1
+            grid[2,3] = 1
+            grid[3,1] = 1 
+            grid[3,2] = 1
+            grid[3,3] = 1
+            return grid
+
+
+        elif self.map_number == 3:
+
+            grid[1,1] = 1
+            grid[1,2] = 1 
+            grid[2,1] = 1
+            grid[2,2] = 1
+            grid[3,3] = 1
+            return grid
+        
+
+        elif self.map_number == 4:
+
+            grid[3,4] = 1
+            grid[3,3] = 1 
+            grid[4,3] = 1
+            grid[4,4] = 1
+            return grid
+
+        elif self.map_number == 5:
+            grid[1,1] = 1
+            grid[2,2] = 1
+            grid[1,2] = 1 
+
+            grid[3,2] = 1 
+            grid[3,3] = 1 
+            return grid
+        
+
+        elif self.map_number == 6:
+            grid[1,2] = 1
+
+            grid[3,4] = 1
+            grid[3,3] = 1 
+            grid[4,3] = 1
+            grid[4,4] = 1
+            return grid
+
+        elif self.map_number == 7:
+            # obstycle
+            grid[2, 3] = 1
+            grid[2, 2] = 1
+            grid[3, 3] = 1
+            grid[3, 2] = 1
+            return grid
+        
+        elif self.map_number == 8:
+            # obstycle
+            grid[3, 3] = 1
+            grid[3, 2] = 1
+            return grid
+
+        elif self.map_number == 9:
+            # obstycle
+            grid[2, 2] = 1
+            grid[2, 1] = 1
+            return grid
+
+        elif self.map_number == 10:
+            # obstycle
+            grid[1, 2] = 1
+            grid[2, 2] = 1
+            return grid
+
+        elif self.map_number == 11:
+            # obstycle
+            grid[1, 2] = 1
+            grid[2, 2] = 1
+            grid[1, 3] = 1
+            grid[2, 3] = 1
+            return grid
+        
+        elif self.map_number == 12:
+            # obstycle
+            # grid[0, 0] = 1
+            # grid[0, 1] = 1
+            grid[0, 2] = 1
+            grid[0, 3] = 1
+            grid[0, 4] = 1
+
+            grid[4, 0] = 1
+            grid[4, 1] = 1
+            grid[4, 2] = 1
+            grid[4, 3] = 1
+            grid[4, 4] = 1
+
+            grid[1, 0] = 1
+            grid[2, 0] = 1
+            grid[3, 0] = 1
+
+            grid[1, 4] = 1
+            grid[2, 4] = 1
+            grid[3, 4] = 1
+            
             return grid
 
     def change_starting_point(self) -> None:
@@ -98,7 +206,7 @@ class SimpleCovargePathPlanningEnv(gym.Env):
 
         move_cell_value = self.grid[new_x, new_y]
         # 1: move to obstyckle, 2: move to alredy visited cell, 0: new visited move
-        reward_map = {1: -0.10, 2: -0.05, 0: 0.1}
+        reward_map = {1: -0.10, 2: -0.01, 0: 0.10}
         reward = reward_map[move_cell_value]
 
         if move_cell_value != 1:  # valid move, applay it
@@ -174,11 +282,6 @@ class SimpleCovargePathPlanningEnv(gym.Env):
 
 
 if __name__ == "__main__":
-
-    env = SimpleCovargePathPlanningEnv(
-        grid_size=(5, 5), starting_point=(0, 0), display=False, map_number=None
-    )
-
     agent = TabularQLearningAgent(
         number_of_action=4,
         number_of_states=25,
@@ -190,46 +293,60 @@ if __name__ == "__main__":
         α_min=0.1,
         ε_min=0.0,
     )
+    
+    # Dict = {map_number: [episodes, ε, ε_decay, ε_min]}
+    maps_dict = {0: (15, 0.9, 0.99, 0.0),
+                1: (20, 0.9, 0.9, 0.0),
+                3: (9, 0.9, 0.9, 0.0),
+                4: (600, 0.9, 0.95, 0.0),
+                5: (100, 0.9, 0.99, 0.0),
+                2: (10, 0.9, 0.99, 0.0),
+                6: (1000, 0.9, 0.99, 0.0)}
+    
 
-    env, agent = learn_agent(
-        env,
-        agent,
-        episodes=15,
-        plot=True,
-        display_qtable=False,
-        display_pygame=False,
-        change_starting_point=False,
-        debug_mode=False,
-    )
+# {2: (1 , 0.9, 0.9, 0.0),
+    beneficial_maps_dict = {0: (50 , 0.9, 0.9999, 0.0),
+                            1: (120, 0.9, 0.9999, 0.0),    
+                            10: (13, 0.9, 0.99, 0.0),
+                            11: (250, 0.9, 0.9999, 0.0),
+                            12: (1, 0.9, 0.9, 0.0),
+    }
 
-    make_Q_table_plot(agent)
+# 0: (10 , 0.9, 0.99, 0.0)
+# 2: (1, 0.9, 0.99, 0.0
+# 1: (380, 0.9, 0.99, 0.0
+# 10: (52, 0.9, 0.99, 0.0
+# 11: (6, 0.9, 0.99, 0.0 
+# 5: (8, 0.9, 0.9, 0.0
+# 2: (1, 0.9, 0.99, 0.0
+# 12: (10, 0.9, 0.99, 0.0
 
-    env = SimpleCovargePathPlanningEnv(
-        grid_size=(5, 5), starting_point=(0, 0), display=True, map_number=None
-    )
-    actions, path = get_sample_actions_Q_table(env, agent, starting_point=(0, 0))
-    plot_graph(path)
 
-    env = SimpleCovargePathPlanningEnv(
-        grid_size=(5, 5), starting_point=(0, 0), display=True, map_number=1
-    )
-
-    agent.ε = 0.9
-    agent.ε_decay = 0.9
-    agent.ε_min = 0.0
-
-    env, agent = learn_agent(
-        env,
-        agent,
-        episodes=20,
-        plot=True,
-        display_qtable=False,
-        display_pygame=False,
-        change_starting_point=False,
-        debug_mode=False,
-    )
-    actions, path = get_sample_actions_Q_table(env, agent, starting_point=(0, 0))
-    plot_graph(path)
+    for map_number, (episodes, ε, ε_decay, ε_min) in beneficial_maps_dict.items():
+        env = SimpleCovargePathPlanningEnv(
+        grid_size=(5, 5), starting_point=(0, 0), display=False, map_number=map_number
+        )
+        agent.ε = ε
+        agent.ε_decay = ε_decay
+        agent.ε_min = ε_min
+    
+        env, agent = learn_agent(
+            env,
+            agent,
+            episodes=episodes,
+            plot=True,
+            display_qtable=False,
+            display_pygame=False,
+            change_starting_point=False,
+            debug_mode=False,
+        )
+        #vizualization
+        make_Q_table_plot(agent)
+        env = SimpleCovargePathPlanningEnv(
+            grid_size=(5, 5), starting_point=(0, 0), display=True, map_number=map_number
+        )
+        actions, path = get_sample_actions_Q_table(env, agent, starting_point=(0, 0))
+        plot_graph(path)
 
     # for starting_point in [(0, 0), (4, 4), (1, 1), (4, 0), (0, 3)]:
 

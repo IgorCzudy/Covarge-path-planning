@@ -117,7 +117,7 @@ class TwoAgentsEnv(gym.Env):
                 else:
                     self.secend_agent_position = new_x, new_y
                     self.grid[new_x, new_y] = 3
-                reward -= 0.5
+                reward -= 0.05
 
             else:  # New valid move
                 if i==0:

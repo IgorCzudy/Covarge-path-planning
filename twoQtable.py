@@ -6,6 +6,8 @@ from typing import Tuple, List, Dict, Optional
 import pygame
 from tqdm import tqdm
 import matplotlib.pyplot as plt 
+from ploting import plot_graph_two_agents, plot_matrix
+
 
 class TwoQTable(): #gym.Env
     
@@ -264,11 +266,15 @@ if __name__ == "__main__":
     env = TwoQTable(grid_size=(5, 5), display=True, map_number=0)
     obs1, obs2, _ = env.reset()
     done = False
+    actions1, actions2 =[], []
     while not done:
         action1, _ = agent1.get_action(obs1)
         action2, _ = agent1.get_action(obs2)
         action1 = action1.item()
         action2 = action2.item()
+        actions1.append(action1)
+        actions2.append(action2)
+
         env.render()
 
         int_to_act = {0: "Move up", 1: "Move down", 2: "Move left", 3: "Move right"}
@@ -292,5 +298,34 @@ if __name__ == "__main__":
         agent2.process_transition(obs2, action2, reward2, next_obs2, done)
         obs1 = next_obs1
         obs2 = next_obs2
+
+        
+    from Rl_run import make_Q_table_plot, get_new_point_from_action
+    make_Q_table_plot(agent1)
+    make_Q_table_plot(agent2)
+
+
+    points1 = [(0,0)]
+    int_points1 = [0]
+    move_out_of_boundry = 0
+    move_to_obs = 0
+    for action in actions1:
+        new_point = get_new_point_from_action(points1[-1], action, 5, env)
+        if new_point != "move_out_of_boundry" and new_point != "move_to_obs":
+            points1.append(new_point)
+            int_points1.append(new_point[1] * 5 + new_point[0])
+
+    points2 = [(4,4)]
+    int_points2 = [24]
+    for action in actions2:
+        new_point = get_new_point_from_action(points2[-1], action, 5, env)
+        if new_point != "move_out_of_boundry" and new_point != "move_to_obs":
+            points2.append(new_point)
+            int_points2.append(new_point[1] * 5 + new_point[0])
+
+    print(f"{move_out_of_boundry=}||{move_to_obs=}")
+    print(f"{points1=}||{points2=}")
+
+    plot_graph_two_agents(int_points1, int_points2)
 
     
