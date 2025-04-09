@@ -30,7 +30,7 @@ def create_graph(number_of_nodes: int) -> nx.Graph:
 
 
 def plot_graph_two_agents(path_agent_one: List[int], path_agent_two: List[int]):
-    graph = create_graph(number_of_nodes=25)
+    graph = create_graph(number_of_nodes=max(path_agent_one + path_agent_two) + 1) #25)
     plt.figure(figsize=(8, 8))
 
     plot_one_path(path_agent_one, graph, colors=None)

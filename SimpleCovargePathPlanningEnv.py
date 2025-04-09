@@ -206,7 +206,7 @@ class SimpleCovargePathPlanningEnv(gym.Env):
 
         move_cell_value = self.grid[new_x, new_y]
         # 1: move to obstyckle, 2: move to alredy visited cell, 0: new visited move
-        reward_map = {1: -0.10, 2: -0.01, 0: 0.10}
+        reward_map = {1: -0.10, 2: -0.05, 0: 0.10}
         reward = reward_map[move_cell_value]
 
         if move_cell_value != 1:  # valid move, applay it
@@ -305,11 +305,11 @@ if __name__ == "__main__":
     
 
 # {2: (1 , 0.9, 0.9, 0.0),
-    beneficial_maps_dict = {0: (50 , 0.9, 0.9999, 0.0),
-                            1: (120, 0.9, 0.9999, 0.0),    
-                            10: (13, 0.9, 0.99, 0.0),
-                            11: (250, 0.9, 0.9999, 0.0),
-                            12: (1, 0.9, 0.9, 0.0),
+    beneficial_maps_dict = {0: (13 , 0.9, 0.99, 0.0),
+                            1: (23, 0.9, 0.99, 0.0),    
+                            10: (96, 0.9, 0.9, 0.0),
+                            11: (17, 0.9, 0.9, 0.0),
+                            12: (5, 0.9, 0.9, 0.0),
     }
 
 # 0: (10 , 0.9, 0.99, 0.0)

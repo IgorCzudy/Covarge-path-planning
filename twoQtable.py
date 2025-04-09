@@ -7,13 +7,18 @@ import pygame
 from tqdm import tqdm
 import matplotlib.pyplot as plt 
 from ploting import plot_graph_two_agents, plot_matrix
+from Rl_run import initialdouble_q_heatmap
+from Rl_run import make_Q_table_plot, updatedouble_q_heatmap
 
 
 class TwoQTable(): #gym.Env
     
-    def __init__(self, grid_size: Tuple[int, int] = (5, 5), display: bool = False, map_number: int = 0):
+    def __init__(self, grid_size: Tuple[int, int] = (5, 5), display: bool = False, map_number: int = 0, first_agent_starting_position = (0,0), secend_agent_starting_position = (4,4)):
         # super(TwoQTable, self).__init__()
         self.map_number = map_number
+
+        self.first_agent_starting_position = first_agent_starting_position
+        self.secend_agent_starting_position = secend_agent_starting_position
 
         self.first_agent_position: Tuple[int, int] = (0, 0)
         self.secend_agent_position: Tuple[int, int] = (4, 4)
@@ -62,13 +67,108 @@ class TwoQTable(): #gym.Env
             grid[3, 2] = 1
             return grid
         
-        if self.map_number == 1:
+        elif self.map_number == 1:
             grid[1,1] = 1
             grid[1,2] = 1 
             grid[2,1] = 1
             grid[2,2] = 1
             grid[3,3] = 1
             return grid
+        
+        elif self.map_number == 2:
+            grid[1,1] = 1
+            grid[1,2] = 1
+            grid[1,3] = 1
+            grid[2,1] = 1
+            grid[2,2] = 1
+            grid[2,3] = 1
+            grid[3,1] = 1 
+            grid[3,2] = 1
+            grid[3,3] = 1
+            return grid
+
+
+        elif self.map_number == 3:
+
+            grid[1,1] = 1
+            grid[1,2] = 1 
+            grid[2,1] = 1
+            grid[2,2] = 1
+            grid[3,3] = 1
+            return grid
+        
+
+        elif self.map_number == 4:
+            grid[1, 1] = 1
+            grid[1, 2] = 1
+            grid[2, 2] = 1
+            grid[3, 2] = 1
+            grid[3, 3] = 1
+
+            return grid
+        
+
+        elif self.map_number == 5:
+            # grid[0, 6] = 1
+            # grid[0, 7] = 1
+            # grid[1, 6] = 1
+            # grid[1, 7] = 1
+            
+            # grid[3, 1] = 1
+            # grid[3, 2] = 1
+            # grid[4, 1] = 1
+            # grid[4, 2] = 1
+
+            # grid[5, 5] = 1
+            # grid[5, 6] = 1
+            # grid[6, 5] = 1
+            # grid[6, 6] = 1
+
+            # grid[6, 0] = 1
+            # grid[7, 0] = 1
+            # grid[7, 1] = 1
+            return grid
+
+
+        elif self.map_number == 6:   
+            for i in range(1,6):
+                for j in range(1,6):
+                    grid[i, j] = 1
+            return grid
+        
+        elif self.map_number == 7:
+            for i in range(1,6):
+                grid[4, i] = 1
+            return grid
+
+        elif self.map_number == 8:
+            for i in range(1,6):
+                grid[2, i] = 1
+                grid[4, i] = 1
+            return grid
+
+
+        elif self.map_number == 9:
+            grid[0, 5] = 1
+            grid[0, 6] = 1
+            grid[1, 5] = 1
+            grid[1, 6] = 1
+            
+            grid[3, 3] = 1
+            grid[3, 5] = 1
+            grid[4, 3] = 1
+            grid[4, 5] = 1
+
+            # grid[5, 5] = 1
+            # grid[5, 6] = 1
+            # grid[6, 5] = 1
+            # grid[6, 6] = 1
+
+            grid[5, 0] = 1
+            grid[6, 0] = 1
+            grid[6, 1] = 1
+            return grid
+
 
     def _get_observation(self, agent_number: int) -> int:
 
@@ -77,13 +177,15 @@ class TwoQTable(): #gym.Env
             agent_position[1]
             + agent_position[0] * self.grid_height
         )
-        assert 0 <= n <= 24
+        # assert 0 <= n <= 24
         return n
 
     def reset(self, seed: Optional[int] = None, options=None) -> Tuple[int, int, Dict]:
         # super().reset(seed=seed)
 
         self.grid = self.make_grid()
+        self.first_agent_position = self.first_agent_starting_position
+        self.secend_agent_position = self.secend_agent_starting_position
         self.grid[self.first_agent_position] = 2
         self.grid[self.secend_agent_position] = 3
 
@@ -108,10 +210,9 @@ class TwoQTable(): #gym.Env
             elif self.grid[new_x, new_y] == 1:  # Obstacle
                 reword[i] -= 0.1
             
-            # elif i==1 and (new_x, new_y) == self.first_agent_position:  # Collision ONLY SECEND AGENT CAN MAKE COLLISON, BECOUSE FIRST AGENT MOVE FIRST
+            # elif (i==1 and (new_x, new_y) == self.first_agent_position):  # Collision
             #     reword[i] = -0.1
             
-
             elif self.grid[new_x, new_y] == 2 or self.grid[new_x, new_y] == 3:  # Visited cell
                 if i==0:
                     self.first_agent_position = new_x, new_y
@@ -119,7 +220,7 @@ class TwoQTable(): #gym.Env
                 else:
                     self.secend_agent_position = new_x, new_y
                     self.grid[new_x, new_y] = 3
-                reword[i] -= 0.5 #0.01
+                reword[i] -= 0.05 #0.5
 
             else:  # New valid move
                 if i==0:
@@ -128,12 +229,14 @@ class TwoQTable(): #gym.Env
                 else:
                     self.secend_agent_position = new_x, new_y
                     self.grid[new_x, new_y] = 3
-                reword[i] += 0.5
+                reword[i] += 0.1 #0.5
         
         done = False
         if np.all((self.grid == 2) | (self.grid == 3) | (self.grid == 1)):
-            reword[0] = 1
-            reword[1] = 1
+            if reword[0] >= 0.1 :
+                reword[0] = 1
+            else:
+                reword[1] = 1
             done = True
 
         return self._get_observation(0), self._get_observation(1), reword[0], reword[1], done, False, {}
@@ -191,33 +294,42 @@ class TwoQTable(): #gym.Env
         pygame.display.flip()
 
 
-if __name__ == "__main__":
+from twoQtableHelper import plot_heatmap, plot_reward, plot_graph, run_learned, format_title, int_to_act, plot_double_q_table
 
-    agent1 = TabularQLearningAgent(
-        number_of_action=4,
-        number_of_states=25,
-        γ=1,
-        α=0.1,
-        ε=0.9999,
-        α_decay=0.99,
-        ε_decay=0.999,
-        α_min=0.1,
-        ε_min=0.0,
-    )
-    agent2 = TabularQLearningAgent(
-        number_of_action=4,
-        number_of_states=25,
-        γ=1,
-        α=0.1,
-        ε=0.9999,
-        α_decay=0.99,
-        ε_decay=0.999, # ε_decay=0.9999, for grid = 0
-        α_min=0.1,
-        ε_min=0.0,
-    )
-    env = TwoQTable(grid_size=(5, 5), display=False, map_number=0)
-    episodes=110
-    rewords1, reowrds2, rewords_sum, εs = [], [], [], []
+if __name__ == "__main__":
+    starting_point1_tuple = (0, 0)
+    starting_point1_int = 0 
+    starting_point2_tuple = (6, 6) #(6, 6) 
+    starting_point2_int = 48 #48
+
+    grid_size = (7, 7)
+    episodes = 1550
+    render = False
+    if_plot_heatmap = False
+    map_number = 5
+    first_agent_starting_position = starting_point1_tuple
+    secend_agent_starting_position = starting_point2_tuple
+
+    agent_params = {
+        "number_of_action": 4,
+        "number_of_states": grid_size[0] * grid_size[1],
+        "γ": 1,
+        "α": 0.1,
+        "ε": 0.999,
+        "α_decay": 0.99,
+        "ε_decay": 0.999,
+        "α_min": 0.1,
+        "ε_min": 0.0,
+    }
+    agent1 = TabularQLearningAgent(**agent_params)
+    agent2 = TabularQLearningAgent(**agent_params)
+
+    if if_plot_heatmap:
+        q_hetmap1, q_hetmap2, text_annotations1, text_annotations2 = initialdouble_q_heatmap(agent1, agent2)
+
+    env = TwoQTable(grid_size=grid_size, display=render, map_number=map_number, first_agent_starting_position=first_agent_starting_position, secend_agent_starting_position=secend_agent_starting_position)
+
+    rewards1, rewards2, rewards_sum, εs = [], [], [], []
     for episode in tqdm(range(episodes)):
         obs1, obs2, _ = env.reset()
         done = False
@@ -303,29 +415,31 @@ if __name__ == "__main__":
     from Rl_run import make_Q_table_plot, get_new_point_from_action
     make_Q_table_plot(agent1)
     make_Q_table_plot(agent2)
+            obs1, obs2 = next_obs1, next_obs2
 
+            if if_plot_heatmap:
+                a1, a2 = int_to_act[action1], int_to_act[action2]
+                plot_heatmap(
+                    agent1, agent2, q_hetmap1, q_hetmap2, text_annotations1, text_annotations2,
+                      format_title(agent1, reward1, a1, episode), format_title(agent2, reward2, a2, episode)
+                )
 
-    points1 = [(0,0)]
-    int_points1 = [0]
-    move_out_of_boundry = 0
-    move_to_obs = 0
-    for action in actions1:
-        new_point = get_new_point_from_action(points1[-1], action, 5, env)
-        if new_point != "move_out_of_boundry" and new_point != "move_to_obs":
-            points1.append(new_point)
-            int_points1.append(new_point[1] * 5 + new_point[0])
+        rewards1.append(rew1)
+        rewards2.append(rew2)
+        rewards_sum.append(rew_sum)
 
-    points2 = [(4,4)]
-    int_points2 = [24]
-    for action in actions2:
-        new_point = get_new_point_from_action(points2[-1], action, 5, env)
-        if new_point != "move_out_of_boundry" and new_point != "move_to_obs":
-            points2.append(new_point)
-            int_points2.append(new_point[1] * 5 + new_point[0])
+    plot_reward(rewards1, rewards2, εs)
 
-    print(f"{move_out_of_boundry=}||{move_to_obs=}")
-    print(f"{points1=}||{points2=}")
+    env = TwoQTable(grid_size=grid_size, display=True, map_number=map_number, first_agent_starting_position=first_agent_starting_position, secend_agent_starting_position=secend_agent_starting_position)
+    actions1, actions2 = run_learned(env, agent1, agent2)
 
-    plot_graph_two_agents(int_points1, int_points2)
+    # make_Q_table_plot(agent1)
+    # make_Q_table_plot(agent2)
+    plot_double_q_table(agent1, agent2)
 
-    
+    plot_graph(env, actions1, actions2, 
+               starting_point1_tuple=starting_point1_tuple, 
+               starting_point1_int=starting_point1_int, 
+               starting_point2_tuple=starting_point2_tuple,
+               starting_point2_int=starting_point2_int
+               )

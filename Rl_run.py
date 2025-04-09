@@ -93,6 +93,74 @@ def initial_q_heatmap(agent):
     return im, []
 
 
+def initialdouble_q_heatmap(agent1, agent2):
+    fig, axes = plt.subplots(ncols=2, figsize=(8, 8))
+
+    ax1, ax2 = axes
+
+    im1 = ax1.imshow(
+        np.zeros_like(agent1.Q), cmap="Blues", aspect="auto", interpolation="nearest"
+    )
+
+    im2 = ax2.imshow(
+        np.zeros_like(agent2.Q), cmap="Blues", aspect="auto", interpolation="nearest"
+    )
+    fig.colorbar(im1, ax=ax1)
+    fig.colorbar(im2, ax=ax2)
+
+    action_names = ["Move up", "Move down", "Move left", "Move right"]
+    
+    for ax, title in zip([ax1, ax2], ["Q-values agent 1 Heatmap", "Q-values agent 2 Heatmap"]):
+        ax.set_xticks(np.arange(len(action_names)))
+        ax.set_xticklabels(action_names, rotation=45, ha="right")
+        ax.set_title(title)
+
+    plt.ion()
+    plt.show(block=False)
+    plt.pause(0.1)
+
+    return im1, im2, [], []
+
+
+def updatedouble_q_heatmap(agent1, agent2, im1, im2, text_annotations1, text_annotations2, title1, title2):
+    # Update heatmaps
+    im1.set_data(agent1.Q)
+    im2.set_data(agent2.Q)
+
+    ax1 = im1.axes
+    ax2 = im2.axes
+    ax1.set_title(title1)
+    ax2.set_title(title2)
+
+    # Clear old annotations
+    for text_annotations in [text_annotations1, text_annotations2]:
+        for annotation in text_annotations:
+            annotation.remove()
+        text_annotations.clear()
+
+    # Add new text annotations to each heatmap
+    for agent, ax, text_annotations in zip(
+        [agent1, agent2], [ax1, ax2], [text_annotations1, text_annotations2]
+    ):
+        for j in range(agent.Q.shape[1]):
+            for i in range(agent.Q.shape[0]):
+                annotation = ax.text(
+                    j,
+                    i,
+                    f"{agent.Q[i, j]:.5f}",
+                    ha="center",
+                    va="center",
+                    color="black",
+                    fontsize=8,
+                )
+                text_annotations.append(annotation)
+
+    # Redraw only the affected canvas
+    im1.figure.canvas.draw()
+    im1.figure.canvas.flush_events()
+
+
+
 def pygame_waiting() -> None:
     print("Press any key to continue")
     while True:  # waiting for button press
@@ -202,7 +270,7 @@ def get_new_point_from_action(last_point: Tuple[int, int], action: int, grid_siz
     elif action == 3 and y < grid_size - 1:  # Move right
         new_y += 1
 
-    if new_x == x and new_y == y:  # move out of bandries
+    if new_x == x and new_y == y: # move out of bandries
         return "move_out_of_boundry"
     elif env.grid[new_x, new_y] == 1:  # move to obstyckle
         return "move_to_obs"

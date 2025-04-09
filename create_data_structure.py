@@ -76,9 +76,12 @@ def create_networkX_graph(grid: np.ndarray) -> Tuple[nx.Graph, List[int]]:
 
     obstacles = [i*height+j for i in range(height) for j in range(width) if grid[i][j] == 1]
     not_obstacles = [i for i in range(number_of_cells) if i not in obstacles] 
-    possible_moves = [(-1, -1), (-1, 0), (-1, 1),
+    # possible_moves = [(-1, -1), (-1, 0), (-1, 1),
+    #                 (0, -1),          (0, 1),
+    #                 (1, -1), (1, 0), (1, 1)]
+    possible_moves = [       (-1, 0), 
                     (0, -1),          (0, 1),
-                    (1, -1), (1, 0), (1, 1)]
+                            (1, 0), ]
 
 
     G = nx.Graph()
