@@ -20,6 +20,8 @@ class TwoQTable(): #gym.Env
         self.grid_width: int = grid_size[0]
         self.grid_height: int = grid_size[1]
         self.num_of_steps: int = 0
+        self.max_steps = 300
+
 
         self.grid: Optional[np.dnarray] = None
 
@@ -46,24 +48,12 @@ class TwoQTable(): #gym.Env
     def make_grid(self) -> np.ndarray:
         grid = np.zeros((self.grid_width, self.grid_height), dtype=int)
 
-        # grid[0, 5] = 1
-        # grid[0, 6] = 1
-        # grid[1, 5] = 1
-        # grid[1, 6] = 1
-        
-        # grid[3, 3] = 1
-        # grid[3, 5] = 1
-        # grid[4, 3] = 1
-        # grid[4, 5] = 1
+        grid[3,3] = 1
+        grid[3,4] = 1
+        grid[4,3] = 1
+        grid[4,4] = 1
 
-        # grid[3, 4] = 1
-        # grid[4, 4] = 1
-        # grid[6, 5] = 1
-        # grid[6, 6] = 1
 
-        # grid[5, 0] = 1
-        # grid[6, 0] = 1
-        # grid[6, 1] = 1
         return grid
 
 
@@ -78,45 +68,52 @@ class TwoQTable(): #gym.Env
         else:
             agent = self.secend_agent_position
 
-        x_pos, y_pos = agent
-        agent_node = agent[0] *self.grid_width + agent[1]
+        # x_pos, y_pos = agent
+        # agent_node = agent[0] *self.grid_width + agent[1]
 
-        neighbours = []
-        # 0: move up, 1: move down, 2: move left, 3: move right
-        moves = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-        for move_x, move_y in moves:
-            x_new_pos = x_pos + move_x
-            y_new_pos = y_pos + move_y
+        # neighbours = []
+        # # 0: move up, 1: move down, 2: move left, 3: move right
+        # moves = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+        # for move_x, move_y in moves:
+        #     x_new_pos = x_pos + move_x
+        #     y_new_pos = y_pos + move_y
 
-            if not (0 <= x_new_pos < self.grid_width and 0 <= y_new_pos < self.grid_height): #move out of bandry
-                neighbours.extend([0, 0])
+        #     if not (0 <= x_new_pos < self.grid_width and 0 <= y_new_pos < self.grid_height): #move out of bandry
+        #         neighbours.extend([0, 0])
 
-            elif self.grid[x_new_pos, y_new_pos] == 1:  # Obstacle
-                neighbours.extend([0, 0])
+        #     elif self.grid[x_new_pos, y_new_pos] == 1:  # Obstacle
+        #         neighbours.extend([0, 0])
                         
-            elif self.grid[x_new_pos, y_new_pos] == 2 or self.grid[x_new_pos, y_new_pos] == 3:  # Visited cell
-                neighbours.extend([1, 0])
-            else:  # New valid move
-                neighbours.extend([1, 1]) # Not visited node
+        #     elif self.grid[x_new_pos, y_new_pos] == 2 or self.grid[x_new_pos, y_new_pos] == 3:  # Visited cell
+        #         neighbours.extend([1, 0])
+        #     else:  # New valid move
+        #         neighbours.extend([1, 1]) # Not visited node
 
 
-        return (agent[0]/self.grid_width, agent[1]/self.grid_width, *neighbours)
+        # return (agent[0]/self.grid_width, agent[1]/self.grid_width, *neighbours)
+        # return np.concatenate(([agent[0]/self.grid_width, agent[1]/self.grid_width], self.grid.flatten()/3)).astype(np.float32)
+ 
 
-        # return [agent_position[0]/self.grid_width, agent_position[1]/self.grid_width]
+        return [agent[0]/self.grid_width, agent[1]/self.grid_width]
     
     def _get_global_state(self):
         """Globalny stan jako połączone pozycje agentów"""
-        return (*self._get_observation(0), *self._get_observation(1))
-        # return [
-        #     *(x / self.grid_width for x in self.first_agent_position),
-        #     *(x / self.grid_width for x in self.secend_agent_position)
-        #     # *(x / self.grid_width for x in self.target_pos)
-        # ]
+        # return np.concatenate(([self.first_agent_position[0]/self.grid_width, self.first_agent_position[1]/self.grid_width,
+        #                 self.secend_agent_position[0]/self.grid_width, self.secend_agent_position[1]/self.grid_width],
+        #                 self.grid.flatten()/3)).astype(np.float32)
+
+        # return (*self._get_observation(0), *self._get_observation(1))
+        return [
+            *(x / self.grid_width for x in self.first_agent_position),
+            *(x / self.grid_width for x in self.secend_agent_position)
+            # *(x / self.grid_width for x in self.target_pos)
+        ]
 
 
 
     def reset(self, seed: Optional[int] = None, options=None) -> Tuple[int, int, Dict]:
         # super().reset(seed=seed)
+        self.num_of_steps = 0
 
         self.grid = self.make_grid()
         self.first_agent_position = self.first_agent_starting_position
@@ -174,10 +171,13 @@ class TwoQTable(): #gym.Env
         
         done = False
         if np.all((self.grid == 2) | (self.grid == 3) | (self.grid == 1)):
-            if reword[0] >= 0.1 :
+            if reword[0] >= 0.1:
                 reword[0] = 10.0
             else:
                 reword[1] = 10.0
+            done = True
+        
+        if self.num_of_steps >= self.max_steps:
             done = True
 
         return (

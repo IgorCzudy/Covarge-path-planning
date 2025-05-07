@@ -26,8 +26,8 @@ def set_seed(seed: int):
 set_seed(42)
 
 # Konfiguracja
-BUFFER_SIZE = 10000#10000
-BATCH_SIZE = 4
+BUFFER_SIZE = 1000#10000
+BATCH_SIZE = 8
 GAMMA = 0.99
 LR = 5e-3
 
@@ -40,6 +40,8 @@ class AgentQNetwork(nn.Module):
             nn.Linear(obs_dim, 64),
             nn.ReLU(),
             nn.Linear(64, 64),
+            # nn.ReLU(),
+            # nn.Linear(128, 64),
             nn.ReLU(),
             nn.Linear(64, action_dim)
         )
@@ -183,11 +185,12 @@ class QMIX:
 
 
 from shortestPath import ShortestPath
+import pygame
+from SimpleGridEnvironment_qmax import SimpleGridEnvironment
 
-
-env = ShortestPath()
-obs_dim = 83#10 #100
-state_dim = 85#20 #obs_dim**2
+env = TwoQTable() #TwoQTable()
+obs_dim = 2#51#10 #100
+state_dim = 4#53#20 #obs_dim**2
 action_dim = 4  # 0 lub 1
 num_agents = 2
 
@@ -197,13 +200,8 @@ episode_rewards = []
 epsilons = []
 
 epsilon=0.9
-for episode in tqdm(range(1200), desc="Training"):
+for episode in tqdm(range(1400), desc="Training"):
     observations, global_state = env.reset()
-    # for a in agent.agents:
-    #     a.reset_hidden()
-    # for a in agent.agents:
-    #     a.reset_hidden()
-
     done = False
     total_reward = 0
     while not done:
@@ -250,7 +248,7 @@ plt.tight_layout()
 plt.show()
 
 
-env = ShortestPath(display=True)
+env = TwoQTable(display=True)#TwoQTable(display=True)
 
 observations, global_state = env.reset()
 done = False

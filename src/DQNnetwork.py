@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from torch import nn
+import torch.nn.functional as F
 from collections import deque
 import torch.optim as optim
 import random
@@ -8,24 +9,47 @@ import random
 
 BUFFER_SIZE = 1000
 GAMMA = 0.99
-BATCH_SIZE = 16        # Increased from 4 (better generalization, stable updates)
+BATCH_SIZE = 128        # Increased from 4 (better generalization, stable updates)
 LR = 1e-3              # Reduced from 5e-2 (prevovershoot)
 TAU = 0.01             # Slower target network update (more stable targets)
 
 
 class DQNnetwork(nn.Module):
     def __init__(self, obs_dim, action_dim):
-        super().__init__()
-        self.seq = nn.Sequential(
-            nn.Linear(obs_dim, 128),
-            nn.ReLU(),
-            nn.Linear(128, 128),
-            nn.ReLU(),
-            nn.Linear(128, action_dim)
-        )
+        super().__init__()        
+        self.conv1 = nn.Conv2d(in_channels=obs_dim[0], out_channels=16, kernel_size=3, stride=2, padding=1)
+        self.pool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.fc1 = nn.Linear(self._get_conv_output_size(obs_dim), 256)
+        self.fc2 = nn.Linear(256, 256)
+        self.out = nn.Linear(256, action_dim)
+
+    def _get_conv_output_size(self, shape):
+        # Dummy forward to determine flattened size
+        dummy = torch.zeros(1, *shape)
+        x = self.pool(F.relu(self.conv1(dummy)))
+        return x.view(1, -1).size(1)
 
     def forward(self, x):
-        return self.seq(x)
+        x = F.relu(self.conv1(x))
+        x = self.pool(x)
+        x = x.view(x.size(0), -1)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.out(x)  # Bez softmax!
+        return x
+
+    # def __init__(self, obs_dim, action_dim):
+    #     super().__init__()
+    #     self.seq = nn.Sequential(
+    #         nn.Linear(obs_dim, 128),
+    #         nn.ReLU(),
+    #         nn.Linear(128, 128),
+    #         nn.ReLU(),
+    #         nn.Linear(128, action_dim)
+    #     )
+
+    # def forward(self, x):
+    #     return self.seq(x)
 
 class DQN():
     def __init__(self, obs_dim, action_dim):
@@ -33,10 +57,11 @@ class DQN():
         
         self.dqn = DQNnetwork(obs_dim, action_dim)
         self.target_dqn = DQNnetwork(obs_dim, action_dim)
+        self.target_dqn.load_state_dict(self.dqn.state_dict())  # Sync weights initially
 
         self.buffer = deque(maxlen=BUFFER_SIZE)
 
-        self.optymizer = optim.Adam(self.dqn.parameters(), lr=LR)
+        self.optymizer = optim.Adam(self.dqn.parameters(), lr=LR, weight_decay=1e-4)
         self.loss_fn = nn.MSELoss()
         self.update_count = 0
 
@@ -45,7 +70,7 @@ class DQN():
         if random.random() < epsilon:
             return np.random.randint(0, self.action_dim) 
 
-        observation = torch.tensor(observation, dtype=torch.float32)
+        observation = torch.tensor(observation, dtype=torch.float32).unsqueeze(0) #add batch dimension
         return self.dqn(observation).argmax().item()
     
     def update(self):
@@ -59,10 +84,10 @@ class DQN():
         batch = random.sample(self.buffer, BATCH_SIZE)
 
         observation, action, reward, next_observation, done = zip(*batch)
-        observation_batch = torch.tensor(observation, dtype=torch.float32)
+        observation_batch = torch.from_numpy(np.array(observation)).float()
         action_batch = torch.tensor(action).unsqueeze(1)
         reword_batch = torch.tensor(reward, dtype=torch.float32).unsqueeze(1)
-        next_observation_batch = torch.tensor(next_observation, dtype=torch.float32)
+        next_observation_batch = torch.from_numpy(np.array(next_observation)).float()
         done_batch = torch.tensor(done, dtype=torch.float32).unsqueeze(1)
 
 
@@ -81,9 +106,11 @@ class DQN():
         self.optymizer.step()
 
         # Aktualizowanie sieci docelowej co N kroków
-        self.update_count += 1
-        if self.update_count % 50 == 0:  # np. co 100 kroków
-            self.update_target()
+        # self.update_count += 1
+        # if self.update_count % 1000 == 0:  # np. co 100 kroków
+        self.update_target()
+
+        return loss.detach().numpy().item()
 
     def update_target(self):
         """Aktualizacja sieci docelowej (target)"""
